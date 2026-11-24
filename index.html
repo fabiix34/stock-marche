@@ -1,0 +1,1292 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stock fin de marché</title>
+<style>
+:root{
+  --bg:#f6f1e7; --card:#fffdf8; --ink:#2b2a26; --muted:#7a7467; --line:#e5dccb;
+  --green:#2f5d3a; --green-soft:#e3eee5; --terra:#c4572e; --terra-soft:#fbe6dc;
+  --amber:#b7791f; --amber-soft:#fbefd5;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:96px}
+header{padding:12px 16px 0;max-width:760px;margin:0 auto}
+h1{font:700 22px/1.1 Georgia,"Times New Roman",serif;margin:0;color:var(--green)}
+.wrap{max-width:760px;margin:0 auto;padding:0 12px}
+nav{display:flex;gap:6px;position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 12px;max-width:760px;margin:0 auto}
+nav button{flex:1;min-height:44px;border:1px solid var(--line);background:var(--card);border-radius:12px;font:600 15px inherit;color:var(--muted);cursor:pointer}
+nav button.on{background:var(--green);border-color:var(--green);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:8px 0}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+input,select{width:100%;min-height:44px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:16px inherit;background:#fff;color:var(--ink);margin-top:4px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button{font:inherit}
+.ghost{min-height:44px;padding:0 14px;border:1px solid var(--green);color:var(--green);background:transparent;border-radius:10px;font-weight:600;white-space:nowrap;cursor:pointer}
+.primary{min-height:48px;padding:0 22px;border:0;background:var(--terra);color:#fff;border-radius:12px;font-weight:700;font-size:16px;cursor:pointer}
+.primary:disabled{opacity:.6}
+.danger{border-color:var(--terra);color:var(--terra)}
+.danger.armed{background:var(--terra);color:#fff}
+.notice{margin:6px 0;padding:10px 12px;border-radius:10px;background:var(--amber-soft);color:#6b4a0e;font-size:14px}
+.notice button{margin-left:8px;min-height:36px;padding:0 12px;border:1px solid #6b4a0e;background:transparent;border-radius:8px;color:#6b4a0e;font-weight:600;cursor:pointer}
+.banner{margin:8px 0;padding:8px 12px;border-radius:10px;background:var(--terra-soft);color:#8a3515;font-size:13px}
+
+/* Saisie */
+.subbar{position:sticky;top:60px;z-index:4;background:var(--bg);padding:4px 0 8px}
+.subbar input{margin:0}
+.modes{display:flex;gap:8px;margin-top:8px;align-items:center}
+.seg{display:flex;flex:1;border:1px solid var(--green);border-radius:10px;overflow:hidden;background:#fff}
+.seg button{flex:1;min-height:40px;border:0;background:transparent;font-weight:600;color:var(--green);cursor:pointer;font-size:14px}
+.seg button.on{background:var(--green);color:#fff}
+.mk{min-height:40px;max-width:44%;padding:0 12px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:700;color:var(--ink);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mk.none{border-color:var(--terra);color:var(--terra)}
+.fromrow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.fromrow label{white-space:nowrap;margin:0}
+.fromrow select{margin:0;min-height:40px;flex:1}
+#modeHint{margin:6px 2px 0;font-size:13px;color:var(--muted)}
+details.cat{background:var(--card);border:1px solid var(--line);border-radius:14px;margin:8px 0;overflow:hidden}
+details.cat>summary{list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;font-weight:700;color:var(--green);cursor:pointer;min-height:44px;background:var(--green-soft)}
+details.cat>summary::-webkit-details-marker{display:none}
+details.cat>summary em{font-style:normal;font-weight:600;font-size:13px;color:var(--muted)}
+.row{display:grid;grid-template-columns:1fr 96px;gap:10px;align-items:center;padding:6px 12px;border-top:1px solid var(--line);min-height:56px}
+.row.done{background:#f3f8f3}
+.row .nm{font-weight:600;line-height:1.2}
+.row .stk{display:block;font-weight:600;font-size:12px;color:var(--green);margin-top:2px}
+.row .stk:empty{display:none}
+.row input{margin:0;text-align:center;font-size:22px;font-weight:700;min-height:48px;padding:4px}
+.row.done input{border-color:var(--green);color:var(--green)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:10px 14px calc(10px + env(safe-area-inset-bottom));z-index:6}
+.barin{max-width:760px;margin:0 auto;width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px}
+#count{font-size:15px;font-weight:600;color:var(--muted)}
+.acts{display:flex;gap:8px;margin-top:14px}
+#noRes button{margin-left:8px;min-height:36px;padding:0 12px;border:1px solid #6b4a0e;background:transparent;border-radius:8px;color:#6b4a0e;font-weight:600;cursor:pointer}
+
+/* Bilan */
+.h-card{margin:6px 0;padding:10px 12px}
+.h-card summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.h-card summary::-webkit-details-marker{display:none}
+.h-card summary.hl{display:grid;grid-template-columns:92px 1fr auto;gap:8px;align-items:center;min-height:32px}
+.h-card .d{font-weight:700}
+.h-card .m{color:var(--muted);font-size:14px}
+.hl .hd{font-weight:700;font-size:14px}
+.hl .hm{color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hl .hc{font-weight:700;color:var(--green);font-variant-numeric:tabular-nums}
+.h-card.chg .hc,.h-card.chg .hm{color:var(--amber)}
+.pill{font-size:12px;font-weight:700;padding:3px 10px;border-radius:99px;background:var(--green-soft);color:var(--green);white-space:nowrap}
+.sec{margin-top:12px}
+.sec h4{margin:0 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{padding:4px 10px;border-radius:99px;font-size:14px;background:#efe8d8}
+.chip.o{background:var(--terra-soft);color:#8a3515;font-weight:600}
+.chip.l{background:var(--amber-soft);color:#6b4a0e}
+.chip.f{background:var(--green-soft);color:var(--green)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:8px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;text-align:center}
+.kpi b{display:block;font:700 22px/1.1 Georgia,serif;color:var(--green)}
+.kpi span{font-size:12px;color:var(--muted)}
+.card h3{margin:0 0 4px;font:700 17px Georgia,serif;color:var(--green)}
+.card .hint{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.brow{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 0;font-size:15px}
+.brow .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brow .b{height:10px;background:#efe8d8;border-radius:5px;overflow:hidden}
+.brow .b i{display:block;height:100%;background:var(--green);border-radius:5px}
+.brow.t .b i{background:var(--terra)}
+.brow.a .b i{background:var(--amber)}
+.brow .v{font-weight:700;font-variant-numeric:tabular-nums;min-width:52px;text-align:right}
+.empty{color:var(--muted);text-align:center;padding:24px 12px}
+#moreStats{margin-top:14px}
+#moreStats>summary{cursor:pointer;font-weight:700;color:var(--green);min-height:32px;display:flex;align-items:center}
+
+/* Paramètres */
+.sub{display:flex;gap:6px;margin:8px 0}
+.sub button{flex:1;min-height:40px;border:1px solid var(--line);background:var(--card);border-radius:10px;font-weight:600;color:var(--muted);cursor:pointer}
+.sub button.on{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.arow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--line)}
+.arow.hid .an{opacity:.45;text-decoration:line-through}
+.arow input{margin:0}
+.arow.p{grid-template-columns:76px 1fr auto auto}
+.arow .un{min-height:40px;padding:0 6px;border:1px solid var(--line);background:#fff;border-radius:10px;font:600 14px inherit;font-family:inherit;color:var(--ink);margin:0}
+.arow.p .an{grid-column:1/-1}
+.arow .pr,.arow .cdi{text-align:center;font-weight:700}
+.cd{display:inline-block;min-width:30px;margin-right:8px;padding:1px 6px;border-radius:6px;background:var(--green-soft);color:var(--green);font-size:12px;font-weight:700;text-align:center;vertical-align:1px}
+.arow .sm{min-height:40px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:600;color:var(--muted);cursor:pointer}
+.arow .sm.danger{border-color:var(--terra);color:var(--terra)}
+.arow .sm.danger.armed{background:var(--terra);color:#fff}
+.fgrid{display:grid;gap:8px}
+.line{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:15px}
+.line button{min-height:36px;padding:0 10px;border:1px solid var(--line);background:#fff;border-radius:8px;color:var(--muted);cursor:pointer}
+.dchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.dchips button{min-height:36px;min-width:44px;padding:0 8px;border:1px solid var(--line);background:#fff;border-radius:10px;font-weight:600;font-size:13px;color:var(--muted);cursor:pointer}
+.dchips button.on{background:var(--green);border-color:var(--green);color:#fff}
+.catlbl{margin:14px 0 2px;font-weight:700;color:var(--green);font-size:14px}
+
+/* Pop-up / feuilles */
+.ov{position:fixed;inset:0;background:rgba(43,42,38,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.ovbox{background:var(--card);width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
+.ovbox h3{margin:0 0 4px;font:700 20px Georgia,serif;color:var(--green)}
+.ovbox .sub2{color:var(--muted);font-size:14px;margin:0 0 12px}
+.mchips{display:flex;flex-wrap:wrap;gap:8px}
+.mchips button{min-height:52px;padding:0 20px;border:1px solid var(--line);background:#fff;border-radius:99px;font-weight:700;font-size:17px;color:var(--ink);cursor:pointer}
+.mchips button.sug{border-color:var(--terra)}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:99px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+#toast.on{opacity:1}
+nav button{font-size:14px;font-weight:600;font-family:inherit;padding:0 4px}
+body.sale header,body.sale nav{display:none}
+body.sale .vhead{top:0}
+body.sale .tile .vp,body.sale .tkl .tpv{display:none}
+.vexit{flex:none;min-height:44px;padding:0 14px;border:1px solid var(--line);background:var(--card);border-radius:12px;font-weight:700;font-size:15px;color:var(--muted);cursor:pointer;font-family:inherit}
+.vhead{position:sticky;top:60px;z-index:4;background:var(--bg);padding:4px 0 6px}
+.vstat{display:flex;align-items:center;gap:10px}
+.vstat>div{flex:1}
+.vstat small{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.vstat b{font:700 24px/1.1 Georgia,serif;color:var(--green);font-variant-numeric:tabular-nums}
+.vhead input{margin:6px 0 0}
+.vcats{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;-webkit-overflow-scrolling:touch}
+.vcats button{flex:none;min-height:38px;padding:0 14px;border:1px solid var(--line);background:var(--card);border-radius:99px;font-weight:600;font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.vcats button.on{background:var(--green);border-color:var(--green);color:#fff}
+.vgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+@media(min-width:520px){.vgrid{grid-template-columns:repeat(3,1fr)}}
+.tile{position:relative;min-height:96px;text-align:left;padding:10px;border:1px solid var(--line);background:var(--card);border-radius:14px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;color:var(--ink);font-family:inherit}
+.tile:active{transform:scale(.97);background:var(--green-soft)}
+.tile.sel{border-color:var(--green);background:var(--green-soft)}
+.tile.out{opacity:.6}
+.tile .vc{font-size:12px;font-weight:700;color:var(--green);min-height:14px}
+.tile .vn{font-weight:700;font-size:15px;line-height:1.15;flex:1}
+.tile .vf{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.tile .vp{font-weight:700;font-size:15px}
+.tile .vp.nop{color:var(--amber);font-weight:600;font-size:13px}
+.tile .vr{font-size:12px;color:var(--muted)}
+.tile.out .vr{color:var(--terra);font-weight:700}
+.tile .vm{position:absolute;top:0;right:0;width:52px;height:46px;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;line-height:1;color:var(--terra)}
+.tile .vm i{width:34px;height:34px;border-radius:17px;border:2px solid var(--terra);display:flex;align-items:center;justify-content:center;font-style:normal;background:#fff}
+.tile .vq{position:absolute;top:10px;right:54px;min-width:26px;height:26px;border-radius:13px;background:var(--green);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px;font-size:14px}
+.barwrap{max-width:760px;margin:0 auto;width:100%}
+.tkinfo{flex:1;display:flex;flex-direction:column;align-items:flex-start;background:transparent;border:0;text-align:left;padding:0;cursor:pointer;min-height:48px;justify-content:center;font-family:inherit;color:var(--ink)}
+#tkCount{font-size:13px;color:var(--muted);font-weight:600}
+#tkTotal{font:700 26px/1.1 Georgia,serif;color:var(--green);font-variant-numeric:tabular-nums}
+#tkPay{min-height:56px;min-width:140px;font-size:18px}
+.tkpanel{max-height:45vh;overflow:auto;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.tkl{display:grid;grid-template-columns:1fr auto 72px;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.tkl .tn{font-weight:600;line-height:1.2}
+.tkl .tm{display:flex;align-items:center;gap:6px}
+.tkl .tm button{width:40px;height:40px;border:1px solid var(--line);background:#fff;border-radius:10px;font-size:20px;font-weight:700;color:var(--green);cursor:pointer}
+.tkl .tm b{min-width:22px;text-align:center}
+.tkl .tpv{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.tkl .tpv.nop{color:var(--amber);font-size:13px}
+.tkamt{display:flex;gap:10px;align-items:flex-end;margin-top:8px}
+.tkamt label{flex:1}
+.vlogrow{display:grid;grid-template-columns:48px 1fr auto auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:14px}
+.vlogrow .vt{color:var(--muted)}
+.vlogrow .vi{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vlogrow button{min-height:36px;padding:0 10px;border:1px solid var(--line);background:#fff;border-radius:8px;color:var(--muted);cursor:pointer}
+.vlogrow button.armed{background:var(--terra);color:#fff;border-color:var(--terra)}
+[hidden]{display:none!important}
+.local{font-size:12px;color:var(--muted);text-align:center;margin:14px 0}
+</style>
+</head>
+<body>
+<header><h1>Stock fin de marché</h1></header>
+<nav>
+  <button data-tab="saisie" class="on">Saisie</button>
+  <button data-tab="vente">Vente</button>
+  <button data-tab="bilan">Bilan</button>
+  <button data-tab="admin">Paramètres</button>
+</nav>
+
+<div class="wrap">
+  <div id="banner" class="banner" hidden></div>
+
+  <section id="tab-saisie">
+    <div class="subbar">
+      <input id="q" type="search" placeholder="Nom ou code du produit…" autocomplete="off">
+      <div class="modes">
+        <div class="seg"><button data-mode="fin" class="on" type="button">Fin de marché</button><button data-mode="charge" type="button">Chargement</button></div>
+        <button id="mkBtn" class="mk" type="button">Marché</button>
+      </div>
+      <div class="fromrow" id="fromRow" hidden><label for="fromSel">Caisses de</label><select id="fromSel"></select></div>
+      <div id="modeHint"></div>
+    </div>
+    <div id="noRes" class="notice" hidden></div>
+    <div id="notice" class="notice" hidden></div>
+    <div id="list"></div>
+    <div class="acts"><button class="ghost danger" id="resetBtn" type="button" style="min-height:40px;font-size:14px">Vider la saisie</button></div>
+  </section>
+
+  <section id="tab-vente" hidden>
+    <div class="vhead">
+      <div class="vstat">
+        <button id="vExit" class="vexit" type="button">← Quitter</button>
+        <div></div>
+        <button id="vkBtn" class="mk" type="button">Marché</button>
+      </div>
+      <input id="vq" type="search" placeholder="Nom ou code (Entrée = +1)" autocomplete="off">
+      <div id="vcats" class="vcats"></div>
+    </div>
+    <div id="vHint" class="notice" hidden></div>
+    <div id="vgrid" class="vgrid"></div>
+    <details class="card" id="vlog" style="margin-top:14px"><summary style="font-weight:700;color:var(--green);cursor:pointer;min-height:32px;display:flex;align-items:center">Ventes de la matinée</summary><div id="vlogList"></div></details>
+  </section>
+
+  <section id="tab-bilan" hidden>
+    <div class="card">
+      <label>Marché<select id="statMarket"></select></label>
+    </div>
+    <div id="kpis"></div>
+    <div id="histo"></div>
+    <details class="card" id="moreStats"><summary>Détails par produit</summary><div id="stats"></div></details>
+  </section>
+
+  <section id="tab-admin" hidden>
+    <div class="sub"><button data-sub="prod" class="on">Produits</button><button data-sub="mar">Marchés</button><button data-sub="ach">Achats</button></div>
+
+    <div id="sub-prod">
+      <div class="card">
+        <h3>Nouveau produit</h3>
+        <form id="admProdForm" class="fgrid">
+          <label>Nom<input id="apName" autocomplete="off" placeholder="ex. Poulet basquaise"></label>
+          <label>Catégorie<select id="apCat"></select></label>
+          <input id="apCatNew" placeholder="Nom de la nouvelle catégorie" hidden>
+          <div class="grid2"><label>Code<input id="apCode" inputmode="numeric" placeholder="ex. 124" autocomplete="off"></label><label>Prix de vente €<input id="apPrice" inputmode="decimal" placeholder="ex. 12,50" autocomplete="off"></label><label>Vendu<select id="apUnit"><option value="piece">À la pièce</option><option value="kg">Au kilo (balance)</option></select></label></div>
+          <button class="ghost" type="submit">Ajouter le produit</button>
+        </form>
+      </div>
+      <div class="card">
+        <h3>Catalogue</h3>
+        <p class="hint">« Masquer » retire un produit de la saisie sans effacer l'historique. Les produits que tu crées peuvent être renommés. Le code est un numéro unique (1 à 999) : tape-le dans la recherche de la saisie pour trouver un produit en un instant. Le prix est le prix de vente en €.</p>
+        <input id="apSearch" type="search" placeholder="Rechercher…" autocomplete="off">
+        <div id="apList"></div>
+      </div>
+    </div>
+
+    <div id="sub-mar" hidden>
+      <div class="card">
+        <h3>Nouveau marché</h3>
+        <form id="admMarForm" class="fgrid">
+          <label>Nom<input id="amName" autocomplete="off" placeholder="ex. Boissy"></label>
+          <div><label>Jours de marché (facultatif)</label><div class="dchips" id="amDays"></div></div>
+          <button class="ghost" type="submit">Ajouter le marché</button>
+        </form>
+      </div>
+      <div class="card"><h3>Mes marchés</h3><p class="hint">Si des jours sont renseignés, le marché est mis en avant ces jours-là quand tu ouvres l'app. Les marchés se créent uniquement ici.</p><div id="amList"></div></div>
+    </div>
+
+    <div id="sub-ach" hidden>
+      <div class="card">
+        <h3>Nouvel achat</h3>
+        <div class="grid2"><label>Date<input type="date" id="acDate"></label><label>Fournisseur<input id="acSup" list="suppliers" autocomplete="off" placeholder="ex. Grossiste"></label></div>
+        <datalist id="suppliers"></datalist><datalist id="prodNames"></datalist>
+        <form id="acLineForm" class="fgrid" style="margin-top:10px">
+          <label>Produit<input id="acProd" list="prodNames" autocomplete="off" placeholder="Tape le nom du produit"></label>
+          <div class="grid2"><label>Quantité<input id="acQty" inputmode="decimal" placeholder="ex. 20"></label><label>Prix total (€)<input id="acCost" inputmode="decimal" placeholder="ex. 120"></label></div>
+          <button class="ghost" type="submit">Ajouter la ligne</button>
+        </form>
+        <div id="acLines"></div>
+        <div class="acts"><button class="primary" id="acSave" type="button">Enregistrer l'achat</button></div>
+      </div>
+      <div id="acKpi"></div>
+      <div id="acList"></div>
+    </div>
+  </section>
+
+  <p class="local" id="modeNote"></p>
+</div>
+
+<div class="bar" id="saveBar">
+  <div class="barin">
+    <div id="count"></div>
+    <button class="primary" id="save" type="button">Terminer le marché</button>
+  </div>
+</div>
+
+<div class="bar" id="saleBar" hidden>
+  <div class="barwrap">
+    <div id="tkPanel" class="tkpanel" hidden>
+      <div id="tkLines"></div>
+      <div class="tkamt"><label>Montant encaissé (si différent)<input id="tkAmount" inputmode="decimal" placeholder="auto"></label><button class="ghost danger" id="tkClear" type="button">Vider</button></div>
+    </div>
+    <div class="barin">
+      <button id="tkToggle" class="tkinfo" type="button"><span id="tkCount">Ticket vide</span><b id="tkTotal">0,00 €</b></button>
+      <button class="primary" id="tkPay" type="button" disabled>Encaisser</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pop-up d'ouverture : choix du marché -->
+<div id="picker" class="ov" hidden>
+  <div class="ovbox">
+    <h3>Quel marché ?</h3>
+    <p class="sub2">Choisis ton marché pour commencer.</p>
+    <div id="pickChips" class="mchips"></div>
+    <div id="pickEmpty"></div>
+    <div class="acts"><button class="ghost" id="pickLater" type="button" style="border-color:var(--line);color:var(--muted)">Plus tard</button></div>
+  </div>
+</div>
+
+<!-- Validation : date + CA -->
+<div id="sheetSave" class="ov" hidden>
+  <div class="ovbox">
+    <h3 id="ssTitle"></h3>
+    <p class="sub2" id="ssInfo"></p>
+    <div class="grid2">
+      <label>Date<input type="date" id="ssDate"></label>
+      <label id="ssCaWrap">CA du marché (€)<input id="ssCa" inputmode="decimal" placeholder="ex. 1250"></label>
+    </div>
+    <div class="acts">
+      <button class="primary" id="ssOk" type="button">Valider</button>
+      <button class="ghost" id="ssCancel" type="button" style="border-color:var(--line);color:var(--muted)">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ajout d'un produit depuis la recherche -->
+<div id="sheetAdd" class="ov" hidden>
+  <div class="ovbox">
+    <h3>Nouveau produit</h3>
+    <form id="addForm" class="fgrid" style="margin-top:10px">
+      <label>Nom du produit<input id="newName" autocomplete="off"></label>
+      <label>Catégorie<select id="newCat"></select></label>
+      <input id="newCatName" placeholder="Nom de la nouvelle catégorie" hidden>
+      <div class="grid2"><label>Code<input id="newCode" inputmode="numeric" placeholder="ex. 124" autocomplete="off"></label><label>Prix de vente €<input id="newPrice" inputmode="decimal" placeholder="ex. 12,50" autocomplete="off"></label><label>Vendu<select id="newUnit"><option value="piece">À la pièce</option><option value="kg">Au kilo (balance)</option></select></label></div>
+      <div class="acts" style="margin-top:4px">
+        <button class="primary" type="submit">Ajouter</button>
+        <button class="ghost" type="button" id="addCancel" style="border-color:var(--line);color:var(--muted)">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+/* ---------- Catalogue (repris de la feuille papier) ---------- */
+var CATALOG = [
+ ["Pièce entière",["Poulet","Pintade","Canette","Canard","Coq entier","Coq en morceau","Poule","Poularde","Coquelet","Lapin","Pigeon","Caille"]],
+ ["Découpes poulet",["Cuisse de poulet","Filet de poulet","Filet mariné","Milieu de cuisse de poulet","Pilon de poulet","Aiguillette de poulet","Gésiers confits","Ailes et cous","Gésier et cœur","Foies"]],
+ ["Dinde",["Cuisse de dinde","Haut de cuisse de dinde","Sot-l'y-laisse","Osso bucco","Escalope italienne","Escalope de dinde"]],
+ ["Pintade",["Suprême de pintade","Cuisse de pintade"]],
+ ["Canard",["Cuisse de canard","Cuisse de canard confite","Magret de canard","Filet de canard","Aiguillette de canard","Andouillette de canard","Foie gras de canard cru éveiné","Magret de canard fumé tranché","Magret de canard roulé au foie gras","Foie gras mi-cuit","Magret de canard fumé maison"]],
+ ["Lapin",["Cuisse de lapin","Cuisse de lapin marinée","Râble de lapin","Patte avant de lapin","Coffre avant de lapin","Foie de lapin","Lapin désossé"]],
+ ["Rôtis",["Rôti de dinde","Rôti de poulet","Rôti de canard","Délice de canard","Rôti de pintade","Rôti de lapin"]],
+ ["Paupiettes",["Paupiette de dinde","Paupiette de poulet","Paupiette de lapin","Paupiette de canard","Paupiette de pintade"]],
+ ["Grillades",["Saucisses nature","Saucisses au fromage","Saucisses aux herbes","Saucisses espelette","Merguez de volaille","Brochette de canard","Brochette de lapin","Brochette de poulet","Brochette de dinde"]],
+ ["Produits dérivés",["Farce de volailles","Pavé savoyard","Tomate farcie","Courgette farcie","Champignon farci","Cordon bleu","Nuggets","Donuts","Saucisson de canard","Jambon de dinde","Steak haché de poulet","Cordon comté","Aiguillette cornflakes","Cordon tomate","Graisse de canard","Cordon roblechon","Aiguillette spicy","Wings","Quenelles"]],
+ ["Œufs",["Gros œufs","Très gros œufs","Œufs bio","Œufs de cailles"]],
+ ["Pâtés",["Terrinette maison","Pâté de canard en croûte","Pâté de pintade en croûte","Terrine de lapin"]],
+ ["Rillettes",["Rillette de canard","Rillette de poulet rôti","Rillette d'oie"]],
+ ["Crémerie",["St Nectaire","Tome de Savoie","Cantal","Ossau-Iraty","Feuilleté chèvre","Feuilleté poulet","Feuilleté lapin","Comté","Emmental","Camembert","Crottin de chèvre","Beurre demi-sel","Beurre doux","Brie de Meaux"]],
+ ["Rôtisserie",["Poulet rôti","Coquelet rôti","Cochon de lait","Chorizo","Travers de porc","Pommes de terre rôties","Jambonneau","Palette rôtie","Effiloché de pdt","Gratin maison","Cuisse de poulet rôtie"]]
+];
+
+/* ---------- Utilitaires ---------- */
+function $(s){return document.querySelector(s)}
+function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function slug(s){return String(s).normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}
+function pad(n){return String(n).padStart(2,'0')}
+function todayStr(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function fmtDate(s){var p=String(s).split('-').map(Number);return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short',year:'numeric'})}
+function shortDate(s){
+  var p=String(s).split('-').map(Number),d=new Date(p[0],p[1]-1,p[2]);
+  var o={weekday:'short',day:'numeric',month:'short'};if(p[0]!==new Date().getFullYear())o.year='2-digit';
+  return d.toLocaleDateString('fr-FR',o);
+}
+function num(v){if(v===''||v==null)return null;var n=parseFloat(String(v).replace(',','.'));return isFinite(n)&&n>=0?n:null}
+function fmtN(n){return Number.isInteger(n)?String(n):String(Math.round(n*10)/10).replace('.',',')}
+function fmtP(n){return String(n).replace('.',',')}
+function eur(n){return (n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR'})}
+function eur0(n){return (n||0).toLocaleString('fr-FR',{style:'currency',currency:'EUR',maximumFractionDigits:0})}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+function toast(msg){var t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.remove('on')},1800)}
+function twoStep(btn,armedLabel,fn){
+  if(btn.dataset.armed){clearTimeout(btn._t);delete btn.dataset.armed;btn.classList.remove('armed');btn.textContent=btn.dataset.label;fn();return}
+  btn.dataset.armed='1';btn.dataset.label=btn.textContent;btn.textContent=armedLabel;btn.classList.add('armed');
+  btn._t=setTimeout(function(){delete btn.dataset.armed;btn.classList.remove('armed');btn.textContent=btn.dataset.label},3000);
+}
+function banner(msg){var b=$('#banner');b.textContent=msg;b.hidden=!msg}
+
+/* ---------- État ---------- */
+var DEFAULTS=[];
+CATALOG.forEach(function(c){c[1].forEach(function(n){DEFAULTS.push({id:slug(c[0]+' '+n),name:n,cat:c[0]})})});
+var S={releves:[],chargements:[],custom:[],hidden:[],markets:[],achats:[],prices:{},codes:{},units:{},ventes:[]};
+function allProductsAll(){return DEFAULTS.concat(S.custom)}
+function allProducts(){return allProductsAll().filter(function(p){return S.hidden.indexOf(p.id)<0})}
+function catsOf(list){var out=[];list.forEach(function(p){if(out.indexOf(p.cat)<0)out.push(p.cat)});return out}
+function categories(){return catsOf(allProducts())}
+function allCategories(){return catsOf(allProductsAll())}
+function nameOf(id){var p=allProductsAll().filter(function(x){return x.id===id})[0];return p?p.name:id}
+var DEFCODE={};DEFAULTS.forEach(function(p,i){DEFCODE[p.id]=i+1});
+function codeOf(id){return S.codes[id]!=null?S.codes[id]:(DEFCODE[id]!=null?DEFCODE[id]:null)}
+function usedCodes(){var u={};allProductsAll().forEach(function(p){var c=codeOf(p.id);if(c!=null)u[c]=p.id});return u}
+function nextCode(){var u=usedCodes();for(var i=1;i<=200;i++)if(!u[i])return i;return null}
+function checkCode(v,selfId){
+  var raw=String(v).trim();if(raw==='')return {ok:true,code:null};
+  var n=parseInt(raw,10);
+  if(!/^\d+$/.test(raw)||n<1||n>999)return {ok:false,err:'Le code doit être un nombre entre 1 et 999'};
+  var used=usedCodes()[n];
+  if(used&&used!==selfId)return {ok:false,err:'Code '+n+' déjà pris par '+nameOf(used)};
+  return {ok:true,code:n};
+}
+function idFor(d,m){return d+'_'+(slug(m)||'marche')}
+function findReleve(id){return S.releves.filter(function(r){return r.id===id})[0]}
+function resteOf(it){if(it==null)return null;if(typeof it==='number')return it;return it.r!=null?it.r:null}
+
+/* Saisie en cours : une liste de nombres par mode (reste en fin de marché / ajouts au chargement) */
+var draft={mode:'fin',from:'general',market:'',date:todayStr(),ca:null,by:{fin:{},charge:{}},loadedId:null,dirty:false,finSaved:false};
+function D(){return draft.by[draft.mode]}
+var DRAFT_KEY='stock-marche-draft',draftT=null;
+function saveDraftSoon(){
+  clearTimeout(draftT);
+  draftT=setTimeout(function(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({date:todayStr(),by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}))}catch(e){}},300);
+}
+function restoreDraft(){
+  try{
+    var d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');
+    if(d&&d.date===todayStr()&&d.by){
+      draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
+      return Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* ---------- Stock : on rejoue les chargements et les fins de marché ---------- */
+function ledger(){
+  var ev=[];
+  function key(d,t){return d+'|'+String(t||0).padStart(14,'0')}
+  S.releves.forEach(function(r){ev.push({k:'c',r:r,t:key(r.date,r.savedAt)})});
+  S.chargements.forEach(function(c){ev.push({k:'a',c:c,t:key(c.date,c.savedAt)})});
+  ev.sort(function(a,b){return a.t<b.t?-1:a.t>b.t?1:0});
+  var stock={},byId={},byM={};
+  ev.forEach(function(e){
+    if(e.k==='a'){
+      /* chargement : on part du stock général, ou du reste déclaré à la fin du dernier marché de la provenance */
+      var its=e.c.items||{},src=e.c.from&&e.c.from!=='general'?slug(e.c.from):'general';
+      var nb=clone(src==='general'?stock:(byM[src]?byM[src].stock:{}));
+      Object.keys(its).forEach(function(p){nb[p]=(nb[p]||0)+(Number(its[p])||0)});
+      stock=nb;
+    }else{
+      var dep=clone(stock),items=e.r.items||{};
+      Object.keys(items).forEach(function(p){var it=items[p];if(it&&typeof it==='object'&&it.s!=null)dep[p]=it.s});
+      byId[e.r.id]={dep:dep};
+      var ns={};
+      Object.keys(items).forEach(function(p){var v=resteOf(items[p]);if(v!=null)ns[p]=v});
+      stock=ns;
+      byM[slug(e.r.market)]={stock:clone(ns),date:e.r.date,name:e.r.market};
+    }
+  });
+  return {stock:stock,byId:byId,byM:byM};
+}
+var L={stock:{},byId:{},byM:{}};
+
+/* ---------- Stockage (base partagée, sinon cet appareil) ---------- */
+var Store={db:null,mode:'local',
+  loadLocal:function(){try{var d=JSON.parse(localStorage.getItem('stock-marche-data')||'{}');S.releves=Object.keys(d.releves||{}).map(function(k){return d.releves[k]});S.chargements=d.chargements||[];S.custom=d.custom||[];S.hidden=d.hidden||[];S.markets=d.markets||[];S.achats=d.achats||[];S.prices=d.prices||{};S.codes=d.codes||{};S.units=d.units||{};S.ventes=d.ventes||[]}catch(e){}},
+  persistLocal:function(){try{var o={releves:{},chargements:S.chargements,custom:S.custom,hidden:S.hidden,markets:S.markets,achats:S.achats,prices:S.prices,codes:S.codes,units:S.units,ventes:S.ventes.map(function(v){var c=clone(v);delete c._rev;delete c._dirty;return c})};S.releves.forEach(function(r){o.releves[r.id]=r});localStorage.setItem('stock-marche-data',JSON.stringify(o))}catch(e){}},
+  saveReleve:function(r){
+    if(this.db)return this.db.doc('releves/'+r.id).set(r);
+    S.releves=S.releves.filter(function(x){return x.id!==r.id}).concat([r]);this.persistLocal();onData();return Promise.resolve();
+  },
+  deleteReleve:function(id){
+    if(this.db)return this.db.doc('releves/'+id).delete();
+    S.releves=S.releves.filter(function(x){return x.id!==id});this.persistLocal();onData();return Promise.resolve();
+  },
+  saveChargement:function(c){
+    if(this.db)return this.db.doc('chargements/'+c.id).set(c);
+    S.chargements=S.chargements.filter(function(x){return x.id!==c.id}).concat([c]);this.persistLocal();onData();return Promise.resolve();
+  },
+  deleteChargement:function(id){
+    if(this.db)return this.db.doc('chargements/'+id).delete();
+    S.chargements=S.chargements.filter(function(x){return x.id!==id});this.persistLocal();onData();return Promise.resolve();
+  },
+  saveVente:function(c){
+    if(this.db)return this.db.doc('ventes/'+c.id).set(c);
+    this.persistLocal();return Promise.resolve();
+  },
+  saveCustom:function(){
+    if(this.db)return this.db.doc('config/produits').set({list:S.custom,hidden:S.hidden,prices:S.prices,codes:S.codes,units:S.units});
+    this.persistLocal();return Promise.resolve();
+  },
+  saveMarkets:function(){
+    if(this.db)return this.db.doc('config/marches').set({list:S.markets});
+    this.persistLocal();return Promise.resolve();
+  },
+  saveAchat:function(a){
+    if(this.db)return this.db.doc('achats/'+a.id).set(a);
+    S.achats=S.achats.filter(function(x){return x.id!==a.id}).concat([a]);this.persistLocal();renderAchats();renderStats();return Promise.resolve();
+  },
+  deleteAchat:function(id){
+    if(this.db)return this.db.doc('achats/'+id).delete();
+    S.achats=S.achats.filter(function(x){return x.id!==id});this.persistLocal();renderAchats();renderStats();return Promise.resolve();
+  },
+  init:function(){
+    var self=this,db=null;
+    var go=function(){
+      if(!db){self.mode='local';self.loadLocal();$('#modeNote').textContent='Données gardées uniquement sur cet appareil.';dataReady=true;marketsReady=true;renderSaisie();fillCatSelect();onData();return}
+      self.db=db;self.mode='db';
+      var slow=setTimeout(function(){banner('Connexion lente : les données affichées ne sont peut-être pas à jour.')},10000);
+      setTimeout(function(){dataReady=true;marketsReady=true;onData()},5000);
+      db.collection('releves').onSnapshot(function(snap){
+        if(!snap.metadata.fromCache){clearTimeout(slow);banner('');dataReady=true}
+        S.releves=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});onData();
+      },function(){clearTimeout(slow);banner('Impossible de lire la base : mode appareil uniquement.');self.db=null;self.mode='local';self.loadLocal();dataReady=true;marketsReady=true;onData()});
+      db.collection('chargements').onSnapshot(function(snap){
+        S.chargements=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});onData();
+      },function(){});
+      db.collection('ventes').onSnapshot(function(snap){
+        var keep={};S.ventes.forEach(function(v){if(v._dirty)keep[v.id]=v});
+        S.ventes=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return keep[o.id]||o});
+        Object.keys(keep).forEach(function(id){if(!S.ventes.some(function(v){return v.id===id}))S.ventes.push(keep[id])});
+        onData();
+      },function(){});
+      db.doc('config/produits').onSnapshot(function(d){
+        var x=d.exists?clone(d.data()):{},list=x.list||[],hid=x.hidden||[],pr=x.prices||{},cd=x.codes||{},un=x.units||{};
+        if(JSON.stringify([list,hid,cd,un])!==JSON.stringify([S.custom,S.hidden,S.codes,S.units])){S.custom=list;S.hidden=hid;S.prices=pr;S.codes=cd;S.units=un;renderSaisie();fillCatSelect();renderAdmin()}
+        else if(JSON.stringify(pr)!==JSON.stringify(S.prices)){S.prices=pr;renderAdmin()}
+      },function(){});
+      db.doc('config/marches').onSnapshot(function(d){
+        var list=d.exists?(clone(d.data()).list||[]):[];
+        if(!d.metadata.fromCache)marketsReady=true;
+        if(JSON.stringify(list)!==JSON.stringify(S.markets))S.markets=list;
+        onData();
+      },function(){marketsReady=true;onData()});
+      db.collection('achats').onSnapshot(function(snap){
+        S.achats=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});renderAchats();renderStats();
+      },function(){});
+    };
+    try{
+      if(window.claude&&window.claude.use){
+        Promise.race([window.claude.use('db'),new Promise(function(r){setTimeout(function(){r(null)},6000)})])
+          .then(function(d){db=d;go()},function(){db=null;go()});
+      }else go();
+    }catch(e){go()}
+  }
+};
+
+/* ---------- Saisie : une case par produit ---------- */
+function rowHTML(p){
+  var v=D()[p.id],c=codeOf(p.id);
+  return '<div class="row'+(v!=null?' done':'')+'" data-id="'+esc(p.id)+'" data-c="'+(c!=null?c:'')+'" data-n="'+esc(slug(p.name).replace(/-/g,' '))+'">'+
+    '<div class="nm">'+(c!=null?'<span class="cd">'+c+'</span>':'')+esc(p.name)+'<span class="stk"></span></div>'+
+    '<input inputmode="decimal" enterkeyhint="next" autocomplete="off" placeholder="–" value="'+(v!=null?fmtN(v):'')+'" aria-label="'+esc(p.name)+'">'+
+  '</div>';
+}
+function renderSaisie(){
+  var prods=allProducts();
+  $('#list').innerHTML=categories().map(function(c){
+    var ps=prods.filter(function(p){return p.cat===c});
+    return '<details class="cat" open data-cat="'+esc(c)+'"><summary><span>'+esc(c)+'</span><em class="cc"></em></summary>'+ps.map(rowHTML).join('')+'</details>';
+  }).join('');
+  modeUI();updateStockLabels();applyFilter();refreshAll();refreshNotice();updateMkBtn();
+}
+function modeUI(){
+  $('#fromRow').hidden=draft.mode!=='charge';fillFromSel();
+  $$('.seg button').forEach(function(b){b.classList.toggle('on',b.dataset.mode===draft.mode)});
+  $('#save').textContent=draft.mode==='fin'?'Terminer le marché':'Valider le chargement';
+  $('#modeHint').textContent=draft.mode==='fin'?'Compte ce qu’il te reste en vitrine, produit par produit.':'Indique ce que tu ajoutes en caisse. Le stock affiché est celui de la provenance choisie.';
+}
+function updateStockLabels(){
+  var show=draft.mode==='charge',cs=curStock();
+  $$('#list .row').forEach(function(r){
+    var st=cs[r.dataset.id],el=r.querySelector('.stk'),t=show&&st>0?'en stock : '+fmtN(st):'';
+    if(el.textContent!==t)el.textContent=t;
+  });
+}
+function updateMkBtn(){
+  var b=$('#mkBtn');
+  b.textContent=draft.market?(draft.mode==='charge'?'Pour : ':'')+draft.market:'Choisir le marché';
+  b.classList.toggle('none',!draft.market);
+  var vb=$('#vkBtn');vb.textContent=draft.market||'Choisir le marché';vb.classList.toggle('none',!draft.market);
+}
+function curStock(){if(draft.from==='general')return L.stock;var m=L.byM&&L.byM[slug(draft.from)];return m?m.stock:{}}
+function fillFromSel(){
+  var sel=$('#fromSel'),bm=L.byM||{};
+  var ks=Object.keys(bm).sort(function(a,b){return bm[a].name.localeCompare(bm[b].name)});
+  if(draft.from!=='general'&&!bm[slug(draft.from)])draft.from='general';
+  sel.innerHTML='<option value="general">Stock général (actuel)</option>'+ks.map(function(k){return '<option value="'+esc(bm[k].name)+'">'+esc(bm[k].name)+' · déclaré le '+esc(shortDate(bm[k].date))+'</option>'}).join('');
+  sel.value=draft.from;
+}
+$('#fromSel').addEventListener('change',function(e){draft.from=e.target.value;updateStockLabels()});
+function setVal(id,val){
+  var n=num(val),d=D();
+  if(n==null)delete d[id];else d[id]=n;
+  if(draft.mode==='fin')draft.finSaved=false;
+  draft.dirty=true;
+  var row=$('.row[data-id="'+id.replace(/"/g,'\\"')+'"]');
+  if(row){row.classList.toggle('done',n!=null);var det=row.closest('details');if(det)updateCat(det)}
+  updateBar();saveDraftSoon();
+}
+function updateCat(det){
+  var n=0,t=0;$$('.row',det).forEach(function(r){t++;if(D()[r.dataset.id]!=null)n++});
+  det.querySelector('.cc').textContent=n+' / '+t;
+}
+function updateBar(){$('#count').textContent=Object.keys(D()).length+' / '+allProducts().length+' saisis'}
+function refreshAll(){$$('details.cat').forEach(updateCat);updateBar()}
+function applyFilter(){
+  var q=slug($('#q').value).replace(/-/g,' '),total=0,digits=/^\d+$/.test($('#q').value.trim());
+  $$('details.cat').forEach(function(det){
+    var any=false;
+    $$('.row',det).forEach(function(r){var show=!q||(digits?r.dataset.c===q:r.dataset.n.indexOf(q)>=0);r.hidden=!show;if(show){any=true;total++}});
+    det.hidden=!any;if(q&&any)det.open=true;
+  });
+  var nr=$('#noRes'),raw=$('#q').value.trim();
+  if(q&&!total){
+    var hid=allProductsAll().filter(function(p){return S.hidden.indexOf(p.id)>=0&&slug(p.name).replace(/-/g,' ').indexOf(q)>=0})[0];
+    nr.hidden=false;
+    nr.innerHTML=(digits?'Aucun produit avec le code '+esc(raw)+'.':'Aucun produit « '+esc(raw)+' ».')+(hid?' Un produit masqué correspond (« '+esc(hid.name)+' ») : réaffiche-le dans Paramètres.':'')+' <button type="button" id="addFromSearch">Ajouter ce produit</button>';
+  }else nr.hidden=true;
+}
+function refreshNotice(){
+  var n=$('#notice');
+  if(draft.mode==='fin'&&draft.market){
+    var ex=findReleve(idFor(draft.date,draft.market));
+    if(ex&&draft.loadedId===ex.id){n.hidden=false;n.textContent='Relevé du jour repris : tu le modifies. Enregistrer le remplacera.';return}
+    if(ex){n.hidden=false;n.innerHTML='Un relevé existe déjà pour ce marché à cette date. Enregistrer le remplacera. <button type="button" id="loadEx">Le charger</button>';return}
+  }
+  n.hidden=true;
+}
+function loadReleve(r){
+  var by={};Object.keys(r.items||{}).forEach(function(p){var v=resteOf(r.items[p]);if(v!=null)by[p]=v});
+  draft.by.fin=by;draft.market=r.market;draft.date=r.date;draft.ca=r.ca==null?null:r.ca;
+  draft.loadedId=r.id;draft.dirty=false;draft.finSaved=true;draft.mode='fin';
+  renderSaisie();
+}
+function setMode(m){
+  if(draft.mode===m)return;
+  draft.mode=m;$('#q').value='';renderSaisie();window.scrollTo(0,0);
+}
+function afterMarket(){
+  draft.date=todayStr();
+  var ex=draft.mode==='fin'?findReleve(idFor(draft.date,draft.market)):null;
+  if(ex&&draft.loadedId!==ex.id&&!Object.keys(draft.by.fin).length){loadReleve(ex);return}
+  updateMkBtn();refreshNotice();
+  if(!$('#tab-vente').hidden)renderVente();
+}
+
+$('#list').addEventListener('input',function(e){
+  var el=e.target;if(el.tagName!=='INPUT')return;
+  setVal(el.closest('.row').dataset.id,el.value);
+});
+$('#list').addEventListener('focusin',function(e){var el=e.target;if(el.tagName==='INPUT')setTimeout(function(){try{el.select()}catch(x){}},0)});
+$('#list').addEventListener('keydown',function(e){
+  if(e.key!=='Enter'||e.target.tagName!=='INPUT')return;
+  e.preventDefault();
+  if($('#q').value.trim()){$('#q').value='';applyFilter();$('#q').focus();return}
+  var rows=$$('#list .row').filter(function(r){var d=r.closest('details');return !r.hidden&&!d.hidden&&d.open});
+  var nx=rows[rows.indexOf(e.target.closest('.row'))+1];
+  if(nx)nx.querySelector('input').focus();else e.target.blur();
+});
+$('#q').addEventListener('input',applyFilter);
+$('#q').addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;e.preventDefault();
+  var r=$$('#list .row').filter(function(x){return !x.hidden&&!x.closest('details').hidden})[0];
+  if(r)r.querySelector('input').focus();
+});
+$$('.seg button').forEach(function(b){b.addEventListener('click',function(){setMode(b.dataset.mode)})});
+$('#mkBtn').addEventListener('click',openPicker);
+$('#notice').addEventListener('click',function(e){
+  if(!e.target.closest('#loadEx'))return;
+  var ex=findReleve(idFor(draft.date,draft.market));if(ex)loadReleve(ex);
+});
+$('#resetBtn').addEventListener('click',function(e){
+  twoStep(e.currentTarget,'Tout effacer ?',function(){
+    draft.by[draft.mode]={};draft.dirty=false;
+    if(draft.mode==='fin'){draft.loadedId=null;draft.ca=null}
+    saveDraftSoon();renderSaisie();toast('Saisie vidée');
+  });
+});
+
+/* Ajout d'un produit depuis la recherche */
+$('#noRes').addEventListener('click',function(e){
+  if(!e.target.closest('#addFromSearch'))return;
+  var raw=$('#q').value.trim(),dg=/^\d+$/.test(raw);
+  fillCatSelect();$('#newName').value=dg?'':raw;$('#newCode').value=dg?raw:(nextCode()||'');$('#sheetAdd').hidden=false;
+});
+$('#addCancel').addEventListener('click',function(){$('#sheetAdd').hidden=true});
+$('#newCat').addEventListener('change',function(e){$('#newCatName').hidden=e.target.value!=='__new'});
+$('#addForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var name=$('#newName').value.trim(),cat=$('#newCat').value;
+  if(cat==='__new')cat=$('#newCatName').value.trim();
+  if(!name||!cat){toast('Nom et catégorie requis');return}
+  var cc=checkCode($('#newCode').value,null);if(!cc.ok){toast(cc.err);return}
+  var id='x-'+slug(name)+'-'+Math.random().toString(36).slice(2,6);
+  S.custom.push({id:id,name:name,cat:cat});
+  if(cc.code!=null)S.codes[id]=cc.code;$('#newCode').value='';
+  var pr=num($('#newPrice').value);if(pr!=null)S.prices[id]=pr;$('#newPrice').value='';if($('#newUnit').value==='kg')S.units[id]='kg';$('#newUnit').value='piece';
+  $('#newCatName').value='';$('#newCatName').hidden=true;$('#sheetAdd').hidden=true;
+  renderSaisie();fillCatSelect();
+  var row=$('.row[data-id="'+id+'"]');if(row){row.scrollIntoView({block:'center'});row.querySelector('input').focus()}
+  Store.saveCustom().then(function(){toast('Produit ajouté ✓')},function(){toast('Ajout non sauvegardé')});
+});
+function fillCatSelect(){
+  var opts=allCategories().map(function(c){return '<option>'+esc(c)+'</option>'}).join('')+'<option value="__new">+ Nouvelle catégorie…</option>';
+  ['#newCat','#apCat'].forEach(function(sel){var s=$(sel),cur=s.value;s.innerHTML=opts;if(cur)s.value=cur});
+  var ac=$('#apCode');if(ac&&!ac.value){var nc=nextCode();if(nc)ac.value=nc}
+}
+
+/* Validation : date + CA */
+$('#save').addEventListener('click',function(){
+  if(!draft.market){toast('Choisis d’abord un marché');openPicker();return}
+  var d=D(),n=Object.keys(d).length;
+  if(!n){toast('Rien de saisi');return}
+  var fin=draft.mode==='fin';
+  var date=fin&&draft.loadedId?draft.date:todayStr();
+  $('#ssTitle').textContent=fin?'Terminer le marché':'Valider le chargement';
+  var ex=fin?findReleve(idFor(date,draft.market)):null;
+  $('#ssInfo').textContent=n+' produit'+(n>1?'s':'')+(fin?' comptés':' ajoutés')+' · '+draft.market+(ex?' · remplace le relevé existant':'')+(fin?'':' · caisses : '+(draft.from==='general'?'stock général':draft.from));
+  $('#ssDate').value=date;
+  $('#ssCaWrap').hidden=!fin;
+  var vv=venteOf(date,draft.market);
+  $('#ssCa').value=fin?(draft.ca!=null?fmtN(draft.ca):(vv&&vv.n?fmtP(Math.round(vv.ca*100)/100):'')):'';
+  $('#sheetSave').hidden=false;
+});
+$('#ssCancel').addEventListener('click',function(){$('#sheetSave').hidden=true});
+$('#ssOk').addEventListener('click',function(){
+  var d=D(),date=$('#ssDate').value||todayStr(),market=draft.market,btn=$('#ssOk');
+  btn.disabled=true;
+  if(draft.mode==='fin'){
+    var items={};Object.keys(d).forEach(function(p){items[p]={r:d[p]}});
+    var ca=num($('#ssCa').value),id=idFor(date,market);
+    var rec={id:id,date:date,market:market,items:items,savedAt:Date.now()};
+    if(ca!=null)rec.ca=ca;
+    Store.saveReleve(rec).then(function(){
+      draft.date=date;draft.ca=ca;draft.loadedId=id;draft.dirty=false;draft.finSaved=true;saveDraftSoon();
+      $('#sheetSave').hidden=true;refreshNotice();toast('Marché enregistré ✓');
+    },function(){toast('Échec de l’enregistrement')}).then(function(){btn.disabled=false});
+  }else{
+    var add={};Object.keys(d).forEach(function(p){if(d[p]>0)add[p]=d[p]});
+    if(!Object.keys(add).length){btn.disabled=false;toast('Aucun ajout à enregistrer');return}
+    var rec2={id:date+'_'+Date.now().toString(36),date:date,market:market,from:draft.from,items:add,savedAt:Date.now()};
+    Store.saveChargement(rec2).then(function(){
+      draft.by.charge={};draft.from='general';draft.dirty=false;saveDraftSoon();
+      $('#sheetSave').hidden=true;renderSaisie();toast('Chargement enregistré ✓');window.scrollTo(0,0);
+    },function(){toast('Échec de l’enregistrement')}).then(function(){btn.disabled=false});
+  }
+});
+
+/* ---------- Bilan : moyennes + liste des déclarations ---------- */
+var WEEK=['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function mdays(m){return m.days?m.days.slice():(m.day?[m.day]:[])}
+function dayChips(sel){return WEEK.map(function(d){return '<button type="button" data-d="'+d+'" class="'+(sel.indexOf(d)>=0?'on':'')+'">'+d.slice(0,3)+'</button>'}).join('')}
+function markets(){
+  var seen={},out=[];
+  S.markets.forEach(function(m){var k=slug(m.name);if(k&&!seen[k]){seen[k]=1;out.push({k:k,n:m.name,days:mdays(m)})}});
+  S.releves.concat(S.chargements).forEach(function(r){if(!r.market)return;var k=slug(r.market);if(!seen[k]){seen[k]=1;out.push({k:k,n:r.market,days:[]})}});
+  return out.sort(function(a,b){return a.n.localeCompare(b.n)});
+}
+function selMarket(){return $('#statMarket').value}
+function closures(){var mk=selMarket();return S.releves.filter(function(r){return !mk||slug(r.market)===mk})}
+function depKeys(dep){return Object.keys(dep||{}).filter(function(p){return dep[p]>0})}
+function ruptures(r,dep){
+  var its=r.items||{},keys=depKeys(dep);
+  if(!keys.length)keys=Object.keys(its).filter(function(p){return resteOf(its[p])===0});
+  return keys.filter(function(p){return (resteOf(its[p])||0)===0});
+}
+function histoCard(r,open){
+  var info=L.byId[r.id]||{dep:{}},dep=info.dep||{},its=r.items||{};
+  var out=ruptures(r,dep).map(nameOf),low=[],ok=[],sold=[];
+  depKeys(dep).forEach(function(p){var v=Math.max(0,dep[p]-(resteOf(its[p])||0));if(v>0)sold.push({n:nameOf(p),v:v})});
+  sold.sort(function(a,b){return b.v-a.v});
+  Object.keys(its).forEach(function(p){var rs=resteOf(its[p]);if(rs==null||rs===0)return;(rs<=2?low:ok).push(nameOf(p)+' ('+fmtN(rs)+')')});
+  var sec=function(t,list,cls){return list.length?'<div class="sec"><h4>'+t+' · '+list.length+'</h4><div class="chips">'+list.map(function(x){return '<span class="chip '+cls+'">'+esc(x)+'</span>'}).join('')+'</div></div>':''};
+  return '<details class="card h-card" data-id="'+esc(r.id)+'" data-k="c"'+(open?' open':'')+'><summary class="hl"><span class="hd">'+esc(shortDate(r.date))+'</span><span class="hm">'+esc(r.market)+'</span><span class="hc">'+(caOf(r)!=null?eur0(caOf(r)):'–')+'</span></summary>'+
+    sec('À remettre',out.sort(),'o')+sec('Vendu',sold.map(function(s){return s.n+' '+fmtN(s.v)}),'f')+sec('Presque fini',low.sort(),'l')+sec('En stock',ok.sort(),'')+
+    '<div class="acts"><button class="ghost" data-act="edit" type="button">Modifier</button><button class="ghost danger" data-act="del" type="button">Supprimer</button></div></details>';
+}
+function chargeCard(c,open){
+  var its=c.items||{},tot=0;
+  var chips=Object.keys(its).map(function(p){tot+=its[p];return nameOf(p)+' +'+fmtN(its[p])}).sort();
+  return '<details class="card h-card chg" data-id="'+esc(c.id)+'" data-k="a"'+(open?' open':'')+'><summary class="hl"><span class="hd">'+esc(shortDate(c.date))+'</span><span class="hm">Chargement'+(c.market?' · '+esc(c.market):'')+(c.from&&c.from!=='general'?' (de '+esc(c.from)+')':'')+'</span><span class="hc">+'+fmtN(tot)+'</span></summary>'+
+    '<div class="sec"><h4>Ajouté en caisse · '+chips.length+'</h4><div class="chips">'+chips.map(function(x){return '<span class="chip l">'+esc(x)+'</span>'}).join('')+'</div></div>'+
+    '<div class="acts"><button class="ghost danger" data-act="delc" type="button">Supprimer</button></div></details>';
+}
+function renderHistory(){
+  var box=$('#histo'),mk=selMarket();
+  var open={};$$('details[open]',box).forEach(function(d){open[d.dataset.id]=1});
+  var rows=closures().map(function(r){return {t:r.date+'|'+String(r.savedAt||0).padStart(14,'0'),html:histoCard(r,open[r.id])}});
+  if(!mk)S.chargements.forEach(function(c){rows.push({t:c.date+'|'+String(c.savedAt||0).padStart(14,'0'),html:chargeCard(c,open[c.id])})});
+  rows.sort(function(a,b){return a.t<b.t?1:a.t>b.t?-1:0});
+  box.innerHTML=rows.length?rows.map(function(r){return r.html}).join(''):'<p class="empty">Aucune déclaration pour l’instant.<br>Termine ton premier marché dans l’onglet Saisie.</p>';
+}
+$('#histo').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-act]');if(!b)return;
+  var card=b.closest('.h-card'),id=card.dataset.id;
+  if(b.dataset.act==='edit'){var r=findReleve(id);if(r){loadReleve(r);showTab('saisie');window.scrollTo(0,0)}}
+  else if(b.dataset.act==='del')twoStep(b,'Confirmer ?',function(){Store.deleteReleve(id).then(function(){toast('Relevé supprimé')},function(){toast('Suppression impossible')})});
+  else if(b.dataset.act==='delc')twoStep(b,'Confirmer ?',function(){Store.deleteChargement(id).then(function(){toast('Chargement supprimé')},function(){toast('Suppression impossible')})});
+});
+function renderKpis(){
+  var box=$('#kpis'),rs=closures();
+  if(!rs.length){box.innerHTML='';return}
+  var caS=0,caN=0,out=0,left=0;
+  rs.forEach(function(r){
+    var cav=caOf(r);if(cav!=null){caS+=cav;caN++}
+    out+=ruptures(r,(L.byId[r.id]||{}).dep).length;
+    Object.keys(r.items||{}).forEach(function(p){left+=resteOf(r.items[p])||0});
+  });
+  box.innerHTML='<div class="kpis">'+
+    '<div class="kpi"><b>'+(caN?eur0(caS/caN):'–')+'</b><span>CA moyen</span></div>'+
+    '<div class="kpi"><b>'+fmtN(out/rs.length)+'</b><span>ruptures / marché</span></div>'+
+    '<div class="kpi"><b>'+fmtN(left/rs.length)+'</b><span>pièces restantes / marché</span></div></div>';
+}
+function bars(rows,cls,fmt){
+  var max=Math.max.apply(null,rows.map(function(r){return r.v}))||1;
+  return rows.map(function(r){return '<div class="brow '+cls+'"><span class="n">'+esc(r.n)+'</span><span class="b"><i style="width:'+Math.max(4,Math.round(r.v/max*100))+'%"></i></span><span class="v">'+fmt(r)+'</span></div>'}).join('');
+}
+function stocksHTML(){
+  var tot=function(s){var t=0;Object.keys(s).forEach(function(k){t+=s[k]});return t};
+  var bm=L.byM||{},ks=Object.keys(bm).sort(function(a,b){return bm[a].name.localeCompare(bm[b].name)});
+  var rows=[{n:'Stock général',sub:'ce que tu as en ce moment',v:tot(L.stock)}].concat(ks.map(function(k){return {n:bm[k].name,sub:'déclaré le '+shortDate(bm[k].date),v:tot(bm[k].stock)}}));
+  return '<div class="card"><h3>Stocks</h3><p class="hint">Le stock par marché est le reste déclaré à la dernière fin de marché.</p>'+rows.map(function(r){return '<div class="line" style="grid-template-columns:1fr auto"><span>'+esc(r.n)+'<br><small style="color:var(--muted)">'+esc(r.sub)+'</small></span><b>'+fmtN(r.v)+' pièces</b></div>'}).join('')+'</div>';
+}
+function renderStats(){
+  var sel=$('#statMarket'),cur=sel.value,ms=markets();
+  sel.innerHTML='<option value="">Tous les marchés</option>'+ms.map(function(m){return '<option value="'+esc(m.k)+'">'+esc(m.n)+'</option>'}).join('');
+  sel.value=ms.some(function(m){return m.k===cur})?cur:'';
+  var rs=closures(),box=$('#stats');
+  if(!rs.length){box.innerHTML=stocksHTML()+'<p class="empty">Les stats apparaîtront dès le premier marché enregistré.</p>'+achatsStatsHTML();return}
+  var agg={};
+  rs.forEach(function(r){
+    var dep=(L.byId[r.id]||{}).dep||{},its=r.items||{};
+    depKeys(dep).forEach(function(p){
+      var a=agg[p]||(agg[p]={n:0,sold:0,out:0,sumR:0,nR:0}),rs0=resteOf(its[p])||0;
+      a.n++;a.sold+=Math.max(0,dep[p]-rs0);if(rs0===0)a.out++;
+    });
+    Object.keys(its).forEach(function(p){
+      var v=resteOf(its[p]);if(v==null)return;
+      var a=agg[p]||(agg[p]={n:0,sold:0,out:0,sumR:0,nR:0});a.sumR+=v;a.nR++;
+    });
+  });
+  var ids=Object.keys(agg);
+  var sold=ids.filter(function(i){return agg[i].sold>0}).sort(function(a,b){return agg[b].sold-agg[a].sold}).slice(0,10).map(function(i){return {n:nameOf(i),v:agg[i].sold}});
+  var outs=ids.filter(function(i){return agg[i].out>0}).sort(function(a,b){return (agg[b].out/agg[b].n)-(agg[a].out/agg[a].n)||agg[b].out-agg[a].out}).slice(0,10).map(function(i){return {n:nameOf(i),v:agg[i].out/agg[i].n,o:agg[i].out,m:agg[i].n}});
+  var left=ids.filter(function(i){return agg[i].nR>0&&agg[i].sumR>0}).sort(function(a,b){return (agg[b].sumR/agg[b].nR)-(agg[a].sumR/agg[a].nR)}).slice(0,10).map(function(i){return {n:nameOf(i),v:agg[i].sumR/agg[i].nR}});
+  var html='<div class="card"><h3>Les plus vendus</h3>'+(sold.length?'<p class="hint">Stock avant le marché − reste en fin de marché, cumulé.</p>'+bars(sold,'',function(r){return fmtN(r.v)}):'<p class="hint">Les ventes se calculent entre un chargement et la fin de marché suivante : enregistre ton chargement avant de compter le reste.</p>')+'</div>';
+  html+='<div class="card"><h3>Souvent en rupture</h3>'+(outs.length?'<p class="hint">Part des marchés où le produit était en stock au départ et s’est retrouvé à 0.</p>'+bars(outs,'t',function(r){return r.o+'/'+r.m}):'<p class="hint">Aucune rupture repérée pour l’instant.</p>')+'</div>';
+  html+='<div class="card"><h3>Ce qui reste le plus</h3>'+(left.length?'<p class="hint">Reste moyen en fin de marché : candidats à charger en moins.</p>'+bars(left,'a',function(r){return fmtN(r.v)}):'<p class="hint">Rien à signaler.</p>')+'</div>';
+  box.innerHTML=stocksHTML()+html+achatsStatsHTML();
+}
+$('#statMarket').addEventListener('change',function(){renderStats();renderKpis();renderHistory()});
+
+/* ---------- Vente : la caisse du matin ---------- */
+/* ================= BALANCE =================
+   SEULE fonction à adapter quand une vraie balance sera branchée.
+   readWeight(product) -> Promise<nombre> : poids en kilos (ex. 1.245), > 0.
+   Rejeter avec new Error('message') si la lecture échoue (balance débranchée,
+   poids instable...) : le message s'affiche à l'écran.
+   product = {id, name}. Simulation actuelle : poids aléatoire 0,200 à 2,000 kg. */
+function readWeight(product){
+  return new Promise(function(resolve){
+    setTimeout(function(){resolve(Math.round((0.2+Math.random()*1.8)*1000)/1000)},120);
+  });
+}
+/* ============== FIN BALANCE ============== */
+
+var tk={},tkW={},weighing={},vcat='auto',vQueue=Promise.resolve();
+function isKg(pid){return S.units[pid]==='kg'}
+function r3(x){return Math.round(x*1000)/1000}
+function fmtKg(w){return w.toLocaleString('fr-FR',{minimumFractionDigits:3,maximumFractionDigits:3})+' kg'}
+/* Produit au kilo : chaque pesée = une ligne du ticket (tkW[pid] = liste de poids, jamais sommés).
+   Produit à la pièce : quantités sommées (tk[pid] = nombre). */
+function setKg(pid,arr){if(!arr.length)delete tkW[pid];else tkW[pid]=arr}
+function tkQ(pid){return isKg(pid)?(tkW[pid]||[]).length:(tk[pid]||0)}
+function sumW(a){return r3(a.reduce(function(x,y){return x+y},0))}
+function tkAddQty(pid,q){if(isKg(pid))setKg(pid,(tkW[pid]||[]).concat([q]));else tk[pid]=(tk[pid]||0)+q}
+function venteOf(date,market){var id=idFor(date,market);return S.ventes.filter(function(v){return v.id===id})[0]||null}
+function caOf(r){if(r.ca!=null)return r.ca;var v=venteOf(r.date,r.market);return v&&v.n?v.ca:null}
+function curVente(create){
+  if(!draft.market)return null;
+  var date=todayStr(),v=venteOf(date,draft.market);
+  if(!v&&create){v={id:idFor(date,draft.market),date:date,market:draft.market,items:{},ca:0,n:0,log:[]};S.ventes.push(v)}
+  return v;
+}
+function priceOf(pid){var p=S.prices[pid];return p!=null?p:null}
+function tkCountN(){var n=0;Object.keys(tk).forEach(function(p){n+=tk[p]});Object.keys(tkW).forEach(function(p){n+=tkW[p].length});return n}
+function tkTotal(){var t=0;Object.keys(tk).forEach(function(p){t+=(priceOf(p)||0)*tk[p]});Object.keys(tkW).forEach(function(p){t+=(priceOf(p)||0)*sumW(tkW[p])});return Math.round(t*100)/100}
+function remBase(pid){
+  if(isKg(pid))return null;
+  var base=L.stock[pid];if(base==null)return null;
+  if(!draft.market)return base;
+  var closed=findReleve(idFor(todayStr(),draft.market)),v=curVente(false);
+  return base-((!closed&&v&&v.items[pid])||0);
+}
+function remOf(pid){var r=remBase(pid);return r==null?null:r-(tk[pid]||0)}
+function hasStockData(){return Object.keys(L.stock).some(function(p){return L.stock[p]>0})}
+function vcatEff(){return vcat==='auto'?(hasStockData()?'stock':'all'):vcat}
+function vProducts(){
+  var raw=$('#vq').value.trim(),q=slug(raw).replace(/-/g,' '),ps=allProducts();
+  if(q){var dg=/^\d+$/.test(raw);return ps.filter(function(p){return dg?String(codeOf(p.id))===q:slug(p.name).replace(/-/g,' ').indexOf(q)>=0})}
+  var c=vcatEff();
+  if(c==='stock')return ps.filter(function(p){var r=remBase(p.id);return isKg(p.id)?(L.stock[p.id]>0||tkQ(p.id)>0):((r!=null&&r>0)||tk[p.id])});
+  if(c==='all')return ps;
+  return ps.filter(function(p){return p.cat===c});
+}
+function tileHTML(p){
+  var c=codeOf(p.id),pr=priceOf(p.id),r=remOf(p.id),q=tkQ(p.id);
+  return '<button type="button" class="tile'+(q?' sel':'')+(r!=null&&r<=0?' out':'')+'" data-id="'+esc(p.id)+'">'+
+    '<span class="vc">'+(c!=null?c:'')+(isKg(p.id)?' ⚖':'')+'</span>'+(q?'<span class="vq">'+q+'</span><span class="vm" data-minus="1" aria-label="retirer un"><i>−</i></span>':'')+
+    '<span class="vn">'+esc(p.name)+'</span>'+
+    '<span class="vf"><span class="vp'+(pr==null?' nop':'')+'">'+(pr!=null?eur(pr):'prix ?')+'</span><span class="vr">'+(r==null?'':(r<=0?'épuisé':'~'+fmtN(r)+' en stock'))+'</span></span></button>';
+}
+function updateTile(pid){
+  var el=$('#vgrid .tile[data-id="'+pid.replace(/"/g,'\\"')+'"]');if(!el)return;
+  var p=allProductsAll().filter(function(x){return x.id===pid})[0];if(!p)return;
+  var t=document.createElement('div');t.innerHTML=tileHTML(p);el.replaceWith(t.firstChild);
+}
+function renderVcats(){
+  var c=vcatEff(),items=[];
+  if(hasStockData())items.push(['stock','En stock']);
+  items.push(['all','Tout']);
+  categories().forEach(function(x){items.push([x,x])});
+  $('#vcats').innerHTML=items.map(function(it){return '<button type="button" data-c="'+esc(it[0])+'" class="'+(it[0]===c?'on':'')+'">'+esc(it[1])+'</button>'}).join('');
+}
+function renderVgrid(){
+  var ps=vProducts();
+  $('#vgrid').innerHTML=ps.length?ps.map(tileHTML).join(''):'<p class="empty" style="grid-column:1/-1">Aucun produit.</p>';
+}
+function renderVente(){
+  var has=!!draft.market,v=curVente(false),hint=$('#vHint');
+  if(!has){hint.hidden=false;hint.innerHTML='Choisis un marché pour enregistrer les ventes. <button type="button" id="vPick">Choisir</button>'}
+  else if(findReleve(idFor(todayStr(),draft.market))){hint.hidden=false;hint.textContent='La fin de marché d’aujourd’hui est déjà enregistrée : les ventes ajoutées restent comptées dans le CA.'}
+  else hint.hidden=true;
+  renderVcats();renderVgrid();renderTicket();renderVlog();
+}
+function renderTicket(){
+  var n=tkCountN(),total=tkTotal(),ids=Object.keys(tk);
+  $('#tkCount').textContent=n?n+' article'+(n>1?'s':''):'Ticket vide';
+  $('#tkTotal').textContent=eur(total);
+  $('#tkPay').disabled=!n;
+  var html=ids.map(function(pid){
+    var q=tk[pid],pr=priceOf(pid);
+    return '<div class="tkl" data-id="'+esc(pid)+'"><span class="tn">'+esc(nameOf(pid))+'</span><span class="tm"><button type="button" data-d="-1" aria-label="moins">−</button><b>'+q+'</b><button type="button" data-d="1" aria-label="plus">+</button></span><span class="tpv'+(pr==null?' nop':'')+'">'+(pr!=null?eur(pr*q):'prix ?')+'</span></div>';
+  }).join('');
+  Object.keys(tkW).forEach(function(pid){
+    var pr=priceOf(pid);
+    tkW[pid].forEach(function(w,j){
+      html+='<div class="tkl" data-id="'+esc(pid)+'" data-j="'+j+'"><span class="tn">'+esc(nameOf(pid))+' ⚖</span><span class="tm"><button type="button" data-kdel="1" aria-label="retirer cette pesée">−</button><b>'+fmtKg(w)+'</b></span><span class="tpv'+(pr==null?' nop':'')+'">'+(pr!=null?eur(pr*w):'prix ?')+'</span></div>';
+    });
+  });
+  $('#tkLines').innerHTML=html;
+  if(!n)$('#tkPanel').hidden=true;
+}
+function afterTk(pid){$('#tkAmount').value='';updateTile(pid);renderTicket()}
+function addTk(pid,d){
+  if(isKg(pid)){
+    if(d>0){
+      if(weighing[pid])return;weighing[pid]=1;
+      var pr;try{pr=Promise.resolve(readWeight({id:pid,name:nameOf(pid)}))}catch(x){pr=Promise.reject(x)}
+      pr.then(function(w){
+        delete weighing[pid];
+        if(!(w>0))throw new Error('poids invalide');
+        setKg(pid,(tkW[pid]||[]).concat([r3(w)]));afterTk(pid);
+        if(navigator.vibrate){try{navigator.vibrate(8)}catch(x){}}
+      }).catch(function(err){delete weighing[pid];toast('Balance : '+(err&&err.message||'lecture impossible'))});
+    }else{
+      var a=(tkW[pid]||[]).slice();a.pop();setKg(pid,a);afterTk(pid);
+    }
+    return;
+  }
+  var q=(tk[pid]||0)+d;if(q<=0)delete tk[pid];else tk[pid]=q;
+  afterTk(pid);
+  if(d>0&&navigator.vibrate){try{navigator.vibrate(8)}catch(x){}}
+}
+function queueSaveVente(v){
+  v._rev=(v._rev||0)+1;v._dirty=true;var rev=v._rev;
+  var c=clone(v);delete c._rev;delete c._dirty;c.savedAt=Date.now();
+  vQueue=vQueue.then(function(){return Store.saveVente(c)}).then(function(){if(v._rev===rev)v._dirty=false},function(){toast('Vente non sauvegardée : vérifie ta connexion')});
+}
+function pay(){
+  var n=tkCountN();if(!n)return;
+  if(!draft.market){toast('Choisis d’abord un marché');openPicker();return}
+  var v=curVente(true),amt=num($('#tkAmount').value),total=amt!=null?amt:tkTotal();
+  Object.keys(tk).forEach(function(p){v.items[p]=r3((v.items[p]||0)+tk[p])});
+  Object.keys(tkW).forEach(function(p){v.items[p]=r3((v.items[p]||0)+sumW(tkW[p]))});
+  v.ca=Math.round((v.ca+total)*100)/100;v.n++;v.log.push({t:Date.now(),l:clone(tk),k:clone(tkW),v:total});
+  tk={};tkW={};$('#tkAmount').value='';$('#tkPanel').hidden=true;
+  queueSaveVente(v);renderVente();toast('Vendu ✓ '+eur(total));
+}
+function recallTicket(i){
+  var v=curVente(false);if(!v||!v.log[i])return;
+  var t=v.log.splice(i,1)[0];
+  Object.keys(t.l).forEach(function(p){v.items[p]=r3((v.items[p]||0)-t.l[p]);if(v.items[p]<=0)delete v.items[p];tkAddQty(p,t.l[p])});
+  Object.keys(t.k||{}).forEach(function(p){v.items[p]=r3((v.items[p]||0)-sumW(t.k[p]));if(v.items[p]<=0)delete v.items[p];setKg(p,(tkW[p]||[]).concat(t.k[p]))});
+  v.ca=Math.max(0,Math.round((v.ca-t.v)*100)/100);v.n=Math.max(0,v.n-1);
+  $('#tkAmount').value='';
+  queueSaveVente(v);renderVente();$('#tkPanel').hidden=false;toast('Ticket rappelé : ajoute ce qu\u2019il faut');
+}
+function renderVlog(){
+  var v=curVente(false),box=$('#vlogList'),log=v?v.log:[];
+  $('#vlog>summary').textContent='Ventes de la matinée'+(log.length?' ('+log.length+')':'');
+  if(!log.length){box.innerHTML='<p class="empty">Aucune vente pour l’instant.</p>';return}
+  box.innerHTML=log.map(function(t,i){
+    var names=Object.keys(t.l).map(function(p){return (isKg(p)?fmtKg(t.l[p])+' ':(t.l[p]>1?t.l[p]+'× ':''))+nameOf(p)});
+    Object.keys(t.k||{}).forEach(function(p){t.k[p].forEach(function(w){names.push(fmtKg(w)+' '+nameOf(p))})});
+    names=names.join(', ');
+    return '<div class="vlogrow" data-i="'+i+'"><span class="vt">'+new Date(t.t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</span><span class="vi">'+esc(names)+'</span><b>'+eur(t.v)+'</b><button type="button" data-recall="1" aria-label="Rappeler ce ticket">↺</button></div>';
+  }).reverse().join('');
+}
+$('#vgrid').addEventListener('click',function(e){var t=e.target.closest('.tile');if(!t)return;addTk(t.dataset.id,e.target.closest('[data-minus]')?-1:1)});
+$('#vq').addEventListener('input',renderVgrid);
+$('#vq').addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;e.preventDefault();
+  var t=$('#vgrid .tile');if(!t)return;
+  addTk(t.dataset.id,1);$('#vq').value='';renderVgrid();$('#vq').focus();
+});
+$('#vcats').addEventListener('click',function(e){var b=e.target.closest('button[data-c]');if(!b)return;vcat=b.dataset.c;$('#vq').value='';renderVente()});
+$('#vkBtn').addEventListener('click',openPicker);
+$('#vExit').addEventListener('click',function(){showTab('saisie')});
+$('#vHint').addEventListener('click',function(e){if(e.target.closest('#vPick'))openPicker()});
+$('#tkToggle').addEventListener('click',function(){if(tkCountN())$('#tkPanel').hidden=!$('#tkPanel').hidden});
+$('#tkLines').addEventListener('click',function(e){
+  var k=e.target.closest('button[data-kdel]');
+  if(k){var l=k.closest('.tkl'),pid=l.dataset.id,a=(tkW[pid]||[]).slice();a.splice(Number(l.dataset.j),1);setKg(pid,a);afterTk(pid);return}
+  var b=e.target.closest('button[data-d]');if(b)addTk(b.closest('.tkl').dataset.id,Number(b.dataset.d));
+});
+$('#tkClear').addEventListener('click',function(e){
+  twoStep(e.currentTarget,'Vider ?',function(){tk={};tkW={};$('#tkAmount').value='';$('#tkPanel').hidden=true;renderVente()});
+});
+$('#tkPay').addEventListener('click',function(){try{pay()}catch(e){toast('Erreur encaissement : '+(e&&e.message||e))}});
+$('#vlogList').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-recall]');if(!b)return;
+  recallTicket(Number(b.closest('.vlogrow').dataset.i));
+});
+
+/* ---------- Onglets, données, pop-up d'ouverture ---------- */
+function showTab(t){
+  ['saisie','vente','bilan','admin'].forEach(function(x){$('#tab-'+x).hidden=x!==t});
+  $$('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===t)});
+  $('#saveBar').hidden=t!=='saisie';
+  $('#saleBar').hidden=t!=='vente';
+  document.body.classList.toggle('sale',t==='vente');
+  if(t==='vente'){if(!draft.market&&pickerDone)openPicker();renderVente()}
+  if(t==='admin')renderAdmin();
+}
+$$('nav button').forEach(function(b){b.addEventListener('click',function(){showTab(b.dataset.tab)})});
+
+var DAYS=['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+var dataReady=false,marketsReady=false,pickerDone=false;
+function onData(){
+  L=ledger();fillFromSel();
+  renderStats();renderKpis();renderHistory();
+  updateStockLabels();updateMkBtn();renderAdmin();
+  maybePicker();renderPicker();
+  if(!$('#tab-vente').hidden)renderVente();
+}
+function maybePicker(){
+  if(pickerDone||!dataReady||!marketsReady)return;
+  pickerDone=true;
+  if(!draft.market)openPicker();
+}
+function openPicker(){$('#picker').hidden=false;renderPicker()}
+function closePicker(){$('#picker').hidden=true}
+function renderPicker(){
+  if($('#picker').hidden)return;
+  var today=DAYS[new Date().getDay()],ms=markets();
+  $('#pickChips').innerHTML=ms.map(function(m){var s=m.days.indexOf(today)>=0;return '<button type="button" data-m="'+esc(m.n)+'"'+(s?' class="sug"':'')+'>'+esc(m.n)+(s?' · aujourd’hui':'')+'</button>'}).join('');
+  $('#pickEmpty').innerHTML=ms.length?'':'<p style="color:var(--muted);font-size:14px">Aucun marché pour l’instant. Les marchés se créent dans Paramètres.</p><button class="ghost" type="button" id="pickGo">Aller dans Paramètres</button>';
+}
+$('#pickChips').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-m]');if(!b)return;
+  draft.market=b.dataset.m;closePicker();afterMarket();
+});
+$('#pickEmpty').addEventListener('click',function(e){if(e.target.closest('#pickGo')){closePicker();showTab('admin');showSub('mar')}});
+$('#pickLater').addEventListener('click',closePicker);
+
+/* ---------- Paramètres ---------- */
+function showSub(s){['prod','mar','ach'].forEach(function(x){$('#sub-'+x).hidden=x!==s});$$('.sub button').forEach(function(b){b.classList.toggle('on',b.dataset.sub===s)})}
+$$('.sub button').forEach(function(b){b.addEventListener('click',function(){showSub(b.dataset.sub)})});
+function renderAdmin(){renderAdmProd();renderAdmMar();renderAchats();renderAcLines();
+  $('#prodNames').innerHTML=allProductsAll().map(function(p){return '<option value="'+esc(p.name+' · '+p.cat)+'">'}).join('');
+}
+
+/* Produits */
+function renderAdmProd(){
+  var q=slug($('#apSearch').value).replace(/-/g,' '),html='';
+  allCategories().forEach(function(c){
+    var ps=allProductsAll().filter(function(p){return p.cat===c&&(!q||(/^\d+$/.test(q)?String(codeOf(p.id))===q:slug(p.name).replace(/-/g,' ').indexOf(q)>=0))});
+    if(!ps.length)return;
+    html+='<div class="catlbl">'+esc(c)+'</div>'+ps.map(function(p){
+      var hid=S.hidden.indexOf(p.id)>=0,cust=p.id.indexOf('x-')===0,pv=S.prices[p.id];
+      return '<div class="arow p'+(hid?' hid':'')+'" data-id="'+esc(p.id)+'">'+(cust?'<input class="an" data-rename="1" value="'+esc(p.name)+'">':'<span class="an">'+esc(p.name)+'</span>')+'<input class="cdi" data-code="1" inputmode="numeric" placeholder="Code" aria-label="Code de '+esc(p.name)+'" value="'+(codeOf(p.id)!=null?codeOf(p.id):'')+'"><input class="pr" data-price="1" inputmode="decimal" placeholder="'+(isKg(p.id)?'Prix €/kg':'Prix €')+'" aria-label="Prix de vente de '+esc(p.name)+'" value="'+(pv!=null?fmtP(pv):'')+'"><select class="un" data-unit="1" aria-label="Vendu à la pièce ou au kilo"><option value="piece"'+(isKg(p.id)?'':' selected')+'>/ pièce</option><option value="kg"'+(isKg(p.id)?' selected':'')+'>/ kilo ⚖</option></select><button type="button" class="sm" data-hide="1">'+(hid?'Réafficher':'Masquer')+'</button></div>';
+    }).join('');
+  });
+  $('#apList').innerHTML=html||'<p class="empty">Aucun produit.</p>';
+}
+function saveProducts(msg){
+  renderSaisie();fillCatSelect();renderAdmin();
+  Store.saveCustom().then(function(){toast(msg||'Enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+}
+$('#apSearch').addEventListener('input',renderAdmProd);
+$('#apList').addEventListener('click',function(e){
+  var b=e.target.closest('[data-hide]');if(!b)return;
+  var id=b.closest('.arow').dataset.id,i=S.hidden.indexOf(id);
+  if(i<0)S.hidden.push(id);else S.hidden.splice(i,1);
+  saveProducts();
+});
+$('#apList').addEventListener('change',function(e){
+  var el=e.target;
+  if(el.dataset.code){
+    var cid=el.closest('.arow').dataset.id,cc2=checkCode(el.value,cid);
+    if(!cc2.ok){toast(cc2.err);el.value=codeOf(cid)!=null?codeOf(cid):'';return}
+    if(cc2.code==null)delete S.codes[cid];else S.codes[cid]=cc2.code;
+    el.value=codeOf(cid)!=null?codeOf(cid):'';
+    renderSaisie();
+    Store.saveCustom().then(function(){toast('Code enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+    return;
+  }
+  if(el.dataset.unit){
+    var uid=el.closest('.arow').dataset.id;
+    if(el.value==='kg')S.units[uid]='kg';else delete S.units[uid];
+    renderAdmProd();
+    Store.saveCustom().then(function(){toast(el.value==='kg'?'Vendu au kilo ⚖ (poids lu sur la balance)':'Vendu à la pièce')},function(){toast('Échec de la sauvegarde')});
+    return;
+  }
+  if(el.dataset.price){
+    var pid=el.closest('.arow').dataset.id,pn=num(el.value);
+    if(pn==null){delete S.prices[pid];el.value=''}else{S.prices[pid]=pn;el.value=fmtP(pn)}
+    Store.saveCustom().then(function(){toast(pn==null?'Prix retiré':'Prix enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+    return;
+  }
+  if(!el.dataset.rename)return;
+  var id=el.closest('.arow').dataset.id,v=el.value.trim();
+  var p=S.custom.filter(function(x){return x.id===id})[0];if(!p)return;
+  if(!v){el.value=p.name;return}
+  if(v!==p.name){p.name=v;saveProducts('Renommé ✓')}
+});
+$('#apCat').addEventListener('change',function(e){$('#apCatNew').hidden=e.target.value!=='__new'});
+$('#admProdForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var name=$('#apName').value.trim(),cat=$('#apCat').value;
+  if(cat==='__new')cat=$('#apCatNew').value.trim();
+  if(!name||!cat){toast('Nom et catégorie requis');return}
+  if(allProductsAll().some(function(p){return p.cat===cat&&slug(p.name)===slug(name)})){toast('Ce produit existe déjà (peut-être masqué)');return}
+  var cc=checkCode($('#apCode').value,null);if(!cc.ok){toast(cc.err);return}
+  var nid='x-'+slug(name)+'-'+Math.random().toString(36).slice(2,6);
+  S.custom.push({id:nid,name:name,cat:cat});
+  if(cc.code!=null)S.codes[nid]=cc.code;$('#apCode').value='';
+  var pr=num($('#apPrice').value);if(pr!=null)S.prices[nid]=pr;$('#apPrice').value='';if($('#apUnit').value==='kg')S.units[nid]='kg';$('#apUnit').value='piece';
+  $('#apName').value='';$('#apCatNew').value='';$('#apCatNew').hidden=true;
+  saveProducts('Produit ajouté ✓');
+});
+
+/* Marchés */
+function renderAdmMar(){
+  var cnt={},conf={};
+  S.releves.forEach(function(r){var k=slug(r.market);cnt[k]=(cnt[k]||0)+1});
+  S.markets.forEach(function(m){conf[slug(m.name)]=1});
+  $('#amList').innerHTML=markets().map(function(m){
+    var inConf=!!conf[m.k];
+    return '<div class="arow" data-k="'+esc(m.k)+'" data-n="'+esc(m.n)+'"><div><b>'+esc(m.n)+'</b><div style="color:var(--muted);font-size:13px">'+(cnt[m.k]||0)+' relevé(s)'+(inConf?'':' · pas encore dans ta liste')+'</div>'+(inConf?'<div class="dchips">'+dayChips(m.days)+'</div>':'')+'</div>'+(inConf?'<button type="button" class="sm danger" data-delmar="1">Retirer</button>':'<button type="button" class="sm" data-addmar="1">Ajouter</button>')+'</div>';
+  }).join('')||'<p class="empty">Aucun marché pour l’instant.</p>';
+}
+function saveMarkets(msg){
+  onData();
+  Store.saveMarkets().then(function(){toast(msg||'Enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+}
+$('#admMarForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var name=$('#amName').value.trim(),days=$$('#amDays button.on').map(function(b){return b.dataset.d});
+  if(!name){toast('Donne un nom au marché');return}
+  var k=slug(name),ex=S.markets.filter(function(m){return slug(m.name)===k})[0];
+  if(ex){if(days.length)ex.days=days;else ex.days=mdays(ex);delete ex.day;toast('Marché mis à jour')}else S.markets.push({name:name,days:days});
+  $('#amName').value='';$('#amDays').innerHTML=dayChips([]);
+  saveMarkets('Marché ajouté ✓');
+});
+$('#amList').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  var row=b.closest('.arow'),k=row.dataset.k;
+  if(b.dataset.d){
+    var mk=S.markets.filter(function(m){return slug(m.name)===k})[0];if(!mk)return;
+    var cur=mdays(mk),i=cur.indexOf(b.dataset.d);if(i<0)cur.push(b.dataset.d);else cur.splice(i,1);
+    mk.days=WEEK.filter(function(d){return cur.indexOf(d)>=0});delete mk.day;saveMarkets('Jours mis à jour');
+  }
+  else if(b.dataset.addmar){S.markets.push({name:row.dataset.n,days:[]});saveMarkets('Marché ajouté ✓')}
+  else if(b.dataset.delmar)twoStep(b,'Confirmer ?',function(){S.markets=S.markets.filter(function(m){return slug(m.name)!==k});saveMarkets('Marché retiré')});
+});
+
+$('#amDays').innerHTML=dayChips([]);
+$('#amDays').addEventListener('click',function(e){var b=e.target.closest('button');if(b)b.classList.toggle('on')});
+
+/* Achats */
+var acLines=[];
+$('#acDate').value=todayStr();
+function findProduct(v){
+  var t=slug(v);if(!t)return null;
+  var all=allProductsAll();
+  var ex=all.filter(function(p){return slug(p.name+' '+p.cat)===t});
+  if(ex.length===1)return ex[0];
+  var byName=all.filter(function(p){return slug(p.name)===t});
+  return byName.length===1?byName[0]:null;
+}
+function renderAcLines(){
+  var tot=0;
+  var html=acLines.map(function(l,i){
+    tot+=l.cost||0;
+    return '<div class="line"><span>'+esc(nameOf(l.pid))+' × '+fmtN(l.qty)+'</span><span>'+(l.cost!=null?eur(l.cost):'–')+'</span><button type="button" data-rm="'+i+'">Retirer</button></div>';
+  }).join('');
+  $('#acLines').innerHTML=html?'<div style="margin-top:12px">'+html+'<div class="line" style="font-weight:700"><span>Total</span><span>'+eur(tot)+'</span><span></span></div></div>':'';
+}
+$('#acLines').addEventListener('click',function(e){var b=e.target.closest('button[data-rm]');if(!b)return;acLines.splice(Number(b.dataset.rm),1);renderAcLines()});
+$('#acLineForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var p=findProduct($('#acProd').value),qty=num($('#acQty').value),cost=num($('#acCost').value);
+  if(!p){toast('Produit inconnu : choisis-le dans la liste ou ajoute-le dans Produits');return}
+  if(!qty){toast('Indique une quantité');return}
+  acLines.push({pid:p.id,qty:qty,cost:cost});
+  $('#acProd').value='';$('#acQty').value='';$('#acCost').value='';
+  renderAcLines();$('#acProd').focus();
+});
+$('#acSave').addEventListener('click',function(){
+  if(!acLines.length){toast('Ajoute au moins une ligne');return}
+  var date=$('#acDate').value||todayStr(),total=0;
+  acLines.forEach(function(l){total+=l.cost||0});
+  var lines=acLines.map(function(l){var o={pid:l.pid,qty:l.qty};if(l.cost!=null)o.cost=l.cost;return o});
+  var rec={id:date+'_'+Date.now().toString(36),date:date,supplier:$('#acSup').value.trim(),lines:lines,total:Math.round(total*100)/100,savedAt:Date.now()};
+  var btn=$('#acSave');btn.disabled=true;
+  Store.saveAchat(rec).then(function(){acLines=[];renderAcLines();toast('Achat enregistré ✓')},function(){toast('Échec de l’enregistrement')}).then(function(){btn.disabled=false});
+});
+function renderAchats(){
+  var box=$('#acList');
+  var open={};$$('details[open]',box).forEach(function(d){open[d.dataset.id]=1});
+  var as=S.achats.slice().sort(function(a,b){return b.date.localeCompare(a.date)||((b.savedAt||0)-(a.savedAt||0))});
+  var ym=todayStr().slice(0,7),tm=0,nm=0,sup={};
+  as.forEach(function(a){if(a.date.indexOf(ym)===0){tm+=a.total||0;nm++}if(a.supplier)sup[a.supplier]=1});
+  $('#acKpi').innerHTML=as.length?'<div class="kpis" style="grid-template-columns:1fr 1fr"><div class="kpi"><b>'+eur(tm)+'</b><span>achats ce mois-ci</span></div><div class="kpi"><b>'+nm+'</b><span>bons ce mois-ci</span></div></div>':'';
+  $('#suppliers').innerHTML=Object.keys(sup).map(function(s){return '<option value="'+esc(s)+'">'}).join('');
+  box.innerHTML=as.length?as.map(function(a){
+    return '<details class="card h-card" data-id="'+esc(a.id)+'"'+(open[a.id]?' open':'')+'><summary><div><div class="d">'+esc(fmtDate(a.date))+'</div><div class="m">'+esc(a.supplier||'Sans fournisseur')+' · '+(a.lines||[]).length+' ligne(s)</div></div><span class="pill">'+eur(a.total)+'</span></summary>'+
+      '<div style="margin-top:8px">'+(a.lines||[]).map(function(l){return '<div class="line"><span>'+esc(nameOf(l.pid))+' × '+fmtN(l.qty)+'</span><span>'+(l.cost!=null?eur(l.cost):'–')+'</span><span></span></div>'}).join('')+'</div>'+
+      '<div class="acts"><button class="ghost danger" data-delach="1" type="button">Supprimer</button></div></details>';
+  }).join(''):'<p class="empty">Aucun achat enregistré.</p>';
+}
+$('#acList').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-delach]');if(!b)return;
+  var id=b.closest('.h-card').dataset.id;
+  twoStep(b,'Confirmer ?',function(){Store.deleteAchat(id).then(function(){toast('Achat supprimé')},function(){toast('Suppression impossible')})});
+});
+function achatsStatsHTML(){
+  if(!S.achats.length)return '';
+  var sp={},tot=0;
+  S.achats.forEach(function(a){(a.lines||[]).forEach(function(l){if(l.cost!=null)sp[l.pid]=(sp[l.pid]||0)+l.cost});tot+=a.total||0});
+  var rows=Object.keys(sp).sort(function(a,b){return sp[b]-sp[a]}).slice(0,10).map(function(i){return {n:nameOf(i),v:sp[i]}});
+  return '<div class="card"><h3>Achats</h3><p class="hint">Total acheté : '+eur(tot)+' ('+S.achats.length+' bon(s), tous marchés confondus).</p>'+(rows.length?bars(rows,'a',function(r){return eur(r.v)}):'')+'</div>';
+}
+
+/* App laissée ouverte d'un jour à l'autre : on repart d'une saisie propre */
+document.addEventListener('visibilitychange',function(){
+  if(document.hidden||draft.date===todayStr()||!draft.finSaved)return;
+  draft.by.fin={};draft.loadedId=null;draft.ca=null;draft.finSaved=false;draft.dirty=false;draft.date=todayStr();draft.market='';
+  renderSaisie();openPicker();
+});
+
+/* ---------- Démarrage ---------- */
+var restored=restoreDraft();
+if(restored){draft.dirty=true}
+renderSaisie();fillCatSelect();renderAdmin();showTab('saisie');
+if(restored)toast('Saisie en cours reprise');
+Store.init();
+</script>
+</body>
+</html>
