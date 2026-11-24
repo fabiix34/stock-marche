@@ -410,14 +410,15 @@ function banner(msg){var b=$('#banner');b.textContent=msg;b.hidden=!msg}
 var DEFAULTS=[];
 CATALOG.forEach(function(c){c[1].forEach(function(n){DEFAULTS.push({id:slug(c[0]+' '+n),name:n,cat:c[0]})})});
 var S={releves:[],chargements:[],custom:[],hidden:[],markets:[],achats:[],prices:{},codes:{},units:{},ventes:[]};
-function allProductsAll(){return DEFAULTS.concat(S.custom)}
+var CAT_DB=false; /* vrai quand le catalogue vient de la table `articles` (Supabase) */
+function allProductsAll(){return CAT_DB?S.custom:DEFAULTS.concat(S.custom)}
 function allProducts(){return allProductsAll().filter(function(p){return S.hidden.indexOf(p.id)<0})}
 function catsOf(list){var out=[];list.forEach(function(p){if(out.indexOf(p.cat)<0)out.push(p.cat)});return out}
 function categories(){return catsOf(allProducts())}
 function allCategories(){return catsOf(allProductsAll())}
 function nameOf(id){var p=allProductsAll().filter(function(x){return x.id===id})[0];return p?p.name:id}
 var DEFCODE={};DEFAULTS.forEach(function(p,i){DEFCODE[p.id]=i+1});
-function codeOf(id){return S.codes[id]!=null?S.codes[id]:(DEFCODE[id]!=null?DEFCODE[id]:null)}
+function codeOf(id){return S.codes[id]!=null?S.codes[id]:(!CAT_DB&&DEFCODE[id]!=null?DEFCODE[id]:null)}
 function usedCodes(){var u={};allProductsAll().forEach(function(p){var c=codeOf(p.id);if(c!=null)u[c]=p.id});return u}
 function nextCode(){var u=usedCodes();for(var i=1;i<=200;i++)if(!u[i])return i;return null}
 function checkCode(v,selfId){
@@ -493,7 +494,57 @@ function makeSupabaseDb(){
   var ready=window.supabase?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
   return ready.then(function(){
     var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
-    var cache={},lastLocal={},docL=[],colL=[];
+    var cache={},lastLocal={},docL=[],colL=[],artRows={},artMode=false,artTimer=null;
+    /* --- Catalogue : table `articles` (id, nom, categorie, code, prix, unite, actif, ordre) ---
+       Si elle contient des lignes, elle devient la source des produits : on l'expose à l'appli
+       sous la forme habituelle du document config/produits. */
+    function fetchArticles(){
+      var all=[];
+      function page(from){
+        return sb.from('articles').select('*').order('ordre',{ascending:true}).range(from,from+999).then(function(r){
+          if(r.error)throw new Error(r.error.message);
+          all=all.concat(r.data||[]);
+          return (r.data||[]).length===1000?page(from+1000):all;
+        });
+      }
+      return page(0);
+    }
+    function loadArticles(){
+      return fetchArticles().then(function(rows){artRows={};rows.forEach(function(r){artRows[r.id]=r});artMode=rows.length>0},function(){artRows={};artMode=false});
+    }
+    function rebuildCatalog(){
+      if(!artMode)return;
+      var rows=Object.keys(artRows).map(function(k){return artRows[k]}).sort(function(a,b){return (a.ordre||0)-(b.ordre||0)});
+      var d={list:[],hidden:[],prices:{},codes:{},units:{}};
+      rows.forEach(function(r){
+        d.list.push({id:r.id,name:r.nom,cat:r.categorie});
+        if(r.actif===false)d.hidden.push(r.id);
+        if(r.prix!=null)d.prices[r.id]=Number(r.prix);
+        if(r.code!=null)d.codes[r.id]=Number(r.code);
+        if(r.unite==='kg')d.units[r.id]='kg';
+      });
+      cache['config/produits']=d;
+    }
+    function sameRow(a,b){return !!a&&a.nom===b.nom&&a.categorie===b.categorie&&(a.code==null?null:Number(a.code))===b.code&&(a.prix==null?null:Number(a.prix))===b.prix&&a.unite===b.unite&&a.actif===b.actif&&a.ordre===b.ordre}
+    function saveArticles(data){
+      var rows=(data.list||[]).map(function(p,i){return {id:p.id,nom:p.name,categorie:p.cat,
+        code:data.codes&&data.codes[p.id]!=null?data.codes[p.id]:null,
+        prix:data.prices&&data.prices[p.id]!=null?data.prices[p.id]:null,
+        unite:data.units&&data.units[p.id]==='kg'?'kg':'piece',
+        actif:(data.hidden||[]).indexOf(p.id)<0,ordre:i}});
+      var keep={};rows.forEach(function(r){keep[r.id]=1});
+      var changed=rows.filter(function(r){return !sameRow(artRows[r.id],r)});
+      var gone=Object.keys(artRows).filter(function(id){return !keep[id]});
+      changed.forEach(function(r){artRows[r.id]=r});gone.forEach(function(id){delete artRows[id]});
+      rebuildCatalog();lastLocal['config/produits']=Date.now();emit();
+      var jobs=[];
+      if(changed.length)jobs.push(sb.from('articles').upsert(changed));
+      if(gone.length)jobs.push(sb.from('articles').delete().in('id',gone));
+      return Promise.all(jobs).then(function(rs){
+        lastLocal['config/produits']=Date.now();
+        rs.forEach(function(r){if(r&&r.error){refresh();throw new Error(r.error.message)}});
+      });
+    }
     function fetchAll(){
       var all=[];
       function page(from){
@@ -516,28 +567,33 @@ function makeSupabaseDb(){
     }
     function recentLocal(path){return lastLocal[path]&&Date.now()-lastLocal[path]<3000}
     function refresh(){
-      return fetchAll().then(function(rows){
-        var next={},changed=false;
-        rows.forEach(function(r){next[r.path]=r.data});
-        Object.keys(cache).forEach(function(k){if(recentLocal(k)&&next[k]===undefined)next[k]=cache[k]});
-        Object.keys(next).forEach(function(k){if(recentLocal(k))next[k]=cache[k]});
-        changed=JSON.stringify(next)!==JSON.stringify(cache);
-        cache=next;if(changed)emit();
+      return Promise.all([fetchAll(),recentLocal('config/produits')?Promise.resolve():loadArticles()]).then(function(rs){
+        var next={},before=JSON.stringify(cache);
+        rs[0].forEach(function(r){next[r.path]=r.data});
+        Object.keys(cache).forEach(function(k){if(recentLocal(k))next[k]=cache[k]});
+        cache=next;
+        if(artMode&&!recentLocal('config/produits'))rebuildCatalog();
+        if(JSON.stringify(cache)!==before)emit();
       }).catch(function(){});
     }
-    return fetchAll().then(function(rows){
-      rows.forEach(function(r){cache[r.path]=r.data});
+    return Promise.all([fetchAll(),loadArticles()]).then(function(rs){
+      rs[0].forEach(function(r){cache[r.path]=r.data});rebuildCatalog();
       sb.channel('docs-sync').on('postgres_changes',{event:'*',schema:'public',table:'docs'},function(pl){
         var row=pl.eventType==='DELETE'?pl.old:pl.new;if(!row||!row.path)return;
-        if(recentLocal(row.path))return;
+        if(recentLocal(row.path)||(artMode&&row.path==='config/produits'))return;
         if(pl.eventType==='DELETE')delete cache[row.path];else cache[row.path]=row.data;
         emit();
+      }).on('postgres_changes',{event:'*',schema:'public',table:'articles'},function(){
+        if(recentLocal('config/produits'))return;
+        clearTimeout(artTimer);artTimer=setTimeout(function(){loadArticles().then(function(){rebuildCatalog();emit()})},400);
       }).subscribe(function(status){if(status==='SUBSCRIBED')refresh()});
       document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh()});
       setInterval(refresh,30000);
       return {
+        catalogFromDb:artMode,
         doc:function(path){return {
           set:function(data){
+            if(artMode&&path==='config/produits')return saveArticles(data);
             cache[path]=JSON.parse(JSON.stringify(data));lastLocal[path]=Date.now();emit();
             return sb.from('docs').upsert({path:path,data:data,updated_at:new Date().toISOString()}).then(function(r){
               lastLocal[path]=Date.now();
@@ -603,13 +659,13 @@ var Store={db:null,mode:'local',
     var self=this,db=null;
     var go=function(){
       if(!db){self.mode='local';self.loadLocal();$('#modeNote').textContent='Données gardées uniquement sur cet appareil.';dataReady=true;marketsReady=true;renderSaisie();fillCatSelect();onData();return}
-      self.db=db;self.mode='db';
+      self.db=db;self.mode='db';CAT_DB=!!db.catalogFromDb;
       var slow=setTimeout(function(){banner('Connexion lente : les données affichées ne sont peut-être pas à jour.')},10000);
       setTimeout(function(){dataReady=true;marketsReady=true;onData()},5000);
       db.collection('releves').onSnapshot(function(snap){
         if(!snap.metadata.fromCache){clearTimeout(slow);banner('');dataReady=true}
         S.releves=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});onData();
-      },function(){clearTimeout(slow);banner('Impossible de lire la base : mode appareil uniquement.');self.db=null;self.mode='local';self.loadLocal();dataReady=true;marketsReady=true;onData()});
+      },function(){clearTimeout(slow);banner('Impossible de lire la base : mode appareil uniquement.');self.db=null;CAT_DB=false;self.mode='local';self.loadLocal();dataReady=true;marketsReady=true;renderSaisie();onData()});
       db.collection('chargements').onSnapshot(function(snap){
         S.chargements=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});onData();
       },function(){});
@@ -1190,7 +1246,7 @@ function renderAdmProd(){
     var ps=allProductsAll().filter(function(p){return p.cat===c&&(!q||(/^\d+$/.test(q)?String(codeOf(p.id))===q:slug(p.name).replace(/-/g,' ').indexOf(q)>=0))});
     if(!ps.length)return;
     html+='<div class="catlbl">'+esc(c)+'</div>'+ps.map(function(p){
-      var hid=S.hidden.indexOf(p.id)>=0,cust=p.id.indexOf('x-')===0,pv=S.prices[p.id];
+      var hid=S.hidden.indexOf(p.id)>=0,cust=CAT_DB||p.id.indexOf('x-')===0,pv=S.prices[p.id];
       return '<div class="arow p'+(hid?' hid':'')+'" data-id="'+esc(p.id)+'">'+(cust?'<input class="an" data-rename="1" value="'+esc(p.name)+'">':'<span class="an">'+esc(p.name)+'</span>')+'<input class="cdi" data-code="1" inputmode="numeric" placeholder="Code" aria-label="Code de '+esc(p.name)+'" value="'+(codeOf(p.id)!=null?codeOf(p.id):'')+'"><input class="pr" data-price="1" inputmode="decimal" placeholder="'+(isKg(p.id)?'Prix €/kg':'Prix €')+'" aria-label="Prix de vente de '+esc(p.name)+'" value="'+(pv!=null?fmtP(pv):'')+'"><select class="un" data-unit="1" aria-label="Vendu à la pièce ou au kilo"><option value="piece"'+(isKg(p.id)?'':' selected')+'>/ pièce</option><option value="kg"'+(isKg(p.id)?' selected':'')+'>/ kilo ⚖</option></select><button type="button" class="sm" data-hide="1">'+(hid?'Réafficher':'Masquer')+'</button></div>';
     }).join('');
   });
