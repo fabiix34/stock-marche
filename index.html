@@ -15,6 +15,22 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:96px}
 header{padding:12px 16px 0;max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .back{flex:none;min-height:40px;padding:0 14px;border:1px solid var(--line);background:var(--card);border-radius:12px;font:700 14px inherit;font-family:inherit;color:var(--green);cursor:pointer}
+.vsellers{display:flex;gap:6px;overflow-x:auto;padding:8px 0 2px;-webkit-overflow-scrolling:touch}
+.vsellers button{flex:none;min-height:44px;padding:0 16px;border:2px solid var(--line);background:var(--card);border-radius:99px;font:700 16px inherit;font-family:inherit;color:var(--ink);cursor:pointer;position:relative}
+.vsellers button.on{background:var(--green);border-color:var(--green);color:#fff}
+.vsellers button i{font-style:normal;margin-left:8px;background:var(--amber);color:#fff;border-radius:99px;padding:1px 8px;font-size:13px}
+.vsellers button.on i{background:#fff;color:var(--green)}
+.vsellers.nudge{animation:nudge .5s}
+@keyframes nudge{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:6px 6px 6px 14px;border:1px solid var(--line);background:#fff;border-radius:99px;font-weight:600}
+.chip button{width:30px;height:30px;border:0;border-radius:15px;background:var(--line);color:var(--muted);cursor:pointer;font-size:14px}
+.chip button.armed{background:var(--terra);color:#fff}
+.tmk{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+.tmk button,.mkchips button{min-height:36px;padding:0 12px;border:1px solid var(--line);background:#fff;border-radius:99px;font-weight:600;color:var(--muted);cursor:pointer}
+.tmk button.on,.mkchips button.on{background:var(--green);border-color:var(--green);color:#fff}
+.mkchips{display:flex;flex-wrap:wrap;gap:6px}
+.sellrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;padding:8px 0;border-top:1px solid var(--line);align-items:baseline}
 .who{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:22px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);font-size:14px;color:var(--muted)}
 .pwrow{display:flex;gap:8px;align-items:center}.pwrow input{flex:1;margin:0}.pwrow .ghost{flex:none;min-height:44px}
 .arow.team{grid-template-columns:1fr auto auto}
@@ -215,6 +231,7 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
       <button class="hbtn" type="button" data-go="saisie"><span class="hi">📋</span><span><b>Saisie</b><small>Stock de fin de marché et chargement des caisses</small></span></button>
       <button class="hbtn" type="button" data-go="vente"><span class="hi">🧾</span><span><b>Vente</b><small>La caisse de la matinée</small></span></button>
       <button class="hbtn" type="button" data-go="bilan"><span class="hi">📊</span><span><b>Bilan</b><small>Historique, CA et stats</small></span></button>
+      <button class="hbtn" type="button" data-go="equipe"><span class="hi">👥</span><span><b>Équipe</b><small>Les vendeurs de chaque marché</small></span></button>
       <button class="hbtn" type="button" data-go="admin"><span class="hi">⚙️</span><span><b>Paramètres</b><small>Produits, marchés et achats</small></span></button>
     </div>
     <div id="whoami" class="who" hidden><span id="whoText"></span><button id="logoutBtn" class="back" type="button">Se déconnecter</button></div>
@@ -243,6 +260,7 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
         <div></div>
         <button id="vkBtn" class="mk" type="button">Marché</button>
       </div>
+      <div id="vsellers" class="vsellers" hidden></div>
       <input id="vq" type="search" placeholder="Nom ou code (Entrée = +1)" autocomplete="off">
       <div id="vcats" class="vcats"></div>
     </div>
@@ -251,17 +269,23 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
     <details class="card" id="vlog" style="margin-top:14px"><summary style="font-weight:700;color:var(--green);cursor:pointer;min-height:32px;display:flex;align-items:center">Ventes de la matinée</summary><div id="vlogList"></div></details>
   </section>
 
+  <section id="tab-equipe" hidden>
+    <p class="hint" style="margin:14px 2px 0">Les vendeurs n'ont pas de compte : ajoute leur prénom ici, ils le choisiront sur la caisse.</p>
+    <div id="equipeList"></div>
+  </section>
+
   <section id="tab-bilan" hidden>
     <div class="card">
       <label>Marché<select id="statMarket"></select></label>
     </div>
     <div id="kpis"></div>
+    <div id="sellersCard"></div>
     <div id="histo"></div>
     <details class="card" id="moreStats"><summary>Détails par produit</summary><div id="stats"></div></details>
   </section>
 
   <section id="tab-admin" hidden>
-    <div class="sub"><button data-sub="prod" class="on">Produits</button><button data-sub="mar">Marchés</button><button data-sub="ach">Achats</button><button data-sub="team" hidden>Équipe</button></div>
+    <div class="sub"><button data-sub="prod" class="on">Produits</button><button data-sub="mar">Marchés</button><button data-sub="ach">Achats</button><button data-sub="team" hidden>Comptes</button></div>
 
     <div id="sub-prod">
       <div class="card">
@@ -313,8 +337,8 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
 
     <div id="sub-team" hidden>
       <div class="card">
-        <h3>Équipe</h3>
-        <p class="hint">Vendeur : la caisse uniquement (saisir des ventes et encaisser). Administrateur : tout.</p>
+        <h3>Comptes</h3>
+        <p class="hint">Responsable : saisie, vente, bilan et équipe de <b>ses marchés</b>. Administrateur : tout. Les vendeurs n’ont pas de compte (onglet Équipe).</p>
         <div id="teamList"></div>
       </div>
       <div class="card">
@@ -323,7 +347,8 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
           <label>Nom (facultatif)<input id="nuNom" autocomplete="off" placeholder="ex. Léa"></label>
           <label>E-mail<input id="nuEmail" type="email" inputmode="email" autocomplete="off" required placeholder="prenom@exemple.fr"></label>
           <label>Mot de passe (8 caractères minimum)<span class="pwrow"><input id="nuPass" type="text" autocomplete="new-password" minlength="8" required><button class="ghost" id="nuGen" type="button">Générer</button></span></label>
-          <label>Rôle<select id="nuRole"><option value="vendeur">Vendeur (caisse uniquement)</option><option value="admin">Administrateur (tout)</option></select></label>
+          <label>Rôle<select id="nuRole"><option value="responsable">Responsable (ses marchés)</option><option value="admin">Administrateur (tout)</option></select></label>
+          <div id="nuMkWrap"><label>Marchés confiés</label><div id="nuMarkets" class="mkchips"></div></div>
           <button class="primary" id="nuBtn" type="submit">Créer le compte</button>
           <p class="hint" id="nuMsg"></p>
         </form>
@@ -469,7 +494,7 @@ function banner(msg){var b=$('#banner');b.textContent=msg;b.hidden=!msg}
 /* ---------- État ---------- */
 var DEFAULTS=[];
 CATALOG.forEach(function(c){c[1].forEach(function(n){DEFAULTS.push({id:slug(c[0]+' '+n),name:n,cat:c[0]})})});
-var S={releves:[],chargements:[],custom:[],hidden:[],markets:[],achats:[],prices:{},codes:{},units:{},ventes:[],role:'admin'};
+var S={releves:[],chargements:[],custom:[],hidden:[],markets:[],achats:[],prices:{},codes:{},units:{},ventes:[],equipes:{},role:'admin',myMarkets:[]};
 var CAT_DB=false; /* vrai quand le catalogue vient de la table `articles` (Supabase) */
 function allProductsAll(){return CAT_DB?S.custom:DEFAULTS.concat(S.custom)}
 function allProducts(){return allProductsAll().filter(function(p){return S.hidden.indexOf(p.id)<0})}
@@ -678,7 +703,8 @@ function noDb(){return Promise.reject(new Error('base injoignable'))}
      vendeur : la caisse uniquement (saisir des ventes et encaisser)
    Les droits réels sont imposés par la base (RLS, voir auth.sql) ; ce code ne fait que masquer l'interface. */
 var AUTH={sb:null,user:null,profile:null,resolve:null};
-var ROLE_TABS={admin:['home','saisie','vente','bilan','admin'],vendeur:['home','vente']};
+var ROLE_TABS={admin:['home','saisie','vente','bilan','admin','equipe'],responsable:['home','saisie','vente','bilan','equipe']};
+function canMarket(k){return S.role==='admin'||S.myMarkets.indexOf(k)>=0}
 function allowedTab(t){return (ROLE_TABS[S.role]||ROLE_TABS.admin).indexOf(t)>=0}
 function withTimeout(p,ms,msg){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error(msg||'délai dépassé'))},ms)})])}
 function showLogin(msg,blocked){
@@ -688,7 +714,7 @@ function showLogin(msg,blocked){
 function applyRole(){
   $$('.hbtn').forEach(function(b){b.hidden=!allowedTab(b.dataset.go)});
   var who=(AUTH.profile&&(AUTH.profile.nom||AUTH.profile.email))||'';
-  $('#whoText').textContent=who+' · '+(S.role==='admin'?'Administrateur':'Vendeur');
+  $('#whoText').textContent=who+' · '+(S.role==='admin'?'Administrateur':'Responsable');
   $('#whoami').hidden=false;
   $('[data-sub="team"]').hidden=S.role!=='admin';
 }
@@ -708,11 +734,11 @@ function connectSupabase(){
   }).then(function(r){
     if(r.error)throw new Error(r.error.message);
     var p=(r.data||[])[0];
-    if(!p||p.actif===false||['admin','vendeur'].indexOf(p.role)<0){
+    if(!p||p.actif===false||['admin','responsable'].indexOf(p.role)<0){
       showLogin('Ce compte n’est pas autorisé. Demande à un administrateur de l’activer.',true);
       return new Promise(function(){});
     }
-    AUTH.profile=p;S.role=p.role;applyRole();
+    AUTH.profile=p;S.role=p.role;S.myMarkets=p.marches||[];applyRole();
     return withTimeout(makeSupabaseDb(AUTH.sb),15000,'délai dépassé');
   });
 }
@@ -729,6 +755,7 @@ $('#logoutBtn').addEventListener('click',logout);
 $('#logoutBtn2').addEventListener('click',logout);
 
 /* Création de compte : appelle /api/create-user (fonction serveur Vercel, réservée aux admins) */
+function userKey(){return AUTH.user?AUTH.user.id:'local'}
 function genPassword(){
   var cs='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',a=new Uint32Array(12),out='';
   (window.crypto||{getRandomValues:function(x){for(var i=0;i<x.length;i++)x[i]=Math.floor(Math.random()*4294967296)}}).getRandomValues(a);
@@ -744,7 +771,7 @@ $('#newUserForm').addEventListener('submit',function(e){
   AUTH.sb.auth.getSession().then(function(r){
     var s=r&&r.data&&r.data.session;if(!s)throw new Error('Session expirée, reconnecte-toi');
     return fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.access_token},
-      body:JSON.stringify({email:email,password:pass,nom:$('#nuNom').value.trim(),role:$('#nuRole').value})});
+      body:JSON.stringify({email:email,password:pass,nom:$('#nuNom').value.trim(),role:$('#nuRole').value,marches:$('#nuRole').value==='admin'?[]:nuSel})});
   }).then(function(r){
     return r.json().catch(function(){return {}}).then(function(j){
       if(!r.ok){throw new Error(r.status===404?'Fonction de création absente : redéploie le projet Vercel':(j.error||'Création impossible'))}
@@ -752,23 +779,29 @@ $('#newUserForm').addEventListener('submit',function(e){
     });
   }).then(function(j){
     msg.textContent='Compte créé ✓ Transmets-lui son e-mail et ce mot de passe : '+pass;
-    $('#nuNom').value='';$('#nuEmail').value='';$('#nuPass').value='';
+    $('#nuNom').value='';$('#nuEmail').value='';$('#nuPass').value='';nuSel=[];
     renderTeam();
   }).catch(function(err){msg.textContent='Échec : '+(err&&err.message||'erreur');msg.style.color='var(--terra)'})
   .then(function(){btn.disabled=false});
 });
 
-/* Équipe (administrateur) */
+/* Comptes (administrateur) : rôle, activation, marchés confiés aux responsables */
+function mkChipsHTML(sel,attr){
+  return markets().map(function(m){return '<button type="button" '+attr+'="'+esc(m.k)+'" class="'+(sel.indexOf(m.k)>=0?'on':'')+'">'+esc(m.n)+'</button>'}).join('')||'<span class="hint">Aucun marché créé.</span>';
+}
 function renderTeam(){
   var box=$('#teamList');
   if(!AUTH.sb){box.innerHTML='<p class="empty">Disponible avec la connexion Supabase uniquement.</p>';return}
+  $('#nuMarkets').innerHTML=mkChipsHTML(nuSel,'data-nk');
+  $('#nuMkWrap').hidden=$('#nuRole').value==='admin';
   AUTH.sb.from('profiles').select('*').order('email').then(function(r){
     if(r.error){box.innerHTML='<p class="empty">'+esc(r.error.message)+'</p>';return}
     box.innerHTML=(r.data||[]).map(function(u){
-      var me=AUTH.user&&u.id===AUTH.user.id;
-      return '<div class="arow team" data-id="'+esc(u.id)+'" data-actif="'+(u.actif===false?'0':'1')+'"><span class="an'+(u.actif===false?' off':'')+'">'+esc(u.nom||u.email||u.id)+(me?' (toi)':'')+'<small>'+esc(u.email||'')+'</small></span>'+
-        '<select class="un" data-role="1"'+(me?' disabled':'')+'><option value="vendeur"'+(u.role==='vendeur'?' selected':'')+'>Vendeur</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>Administrateur</option></select>'+
-        '<button type="button" class="sm" data-active="1"'+(me?' disabled':'')+'>'+(u.actif===false?'Réactiver':'Désactiver')+'</button></div>';
+      var me=AUTH.user&&u.id===AUTH.user.id,mk=u.marches||[];
+      return '<div class="arow team" data-id="'+esc(u.id)+'" data-actif="'+(u.actif===false?'0':'1')+'" data-marches="'+esc(mk.join(','))+'"><span class="an'+(u.actif===false?' off':'')+'">'+esc(u.nom||u.email||u.id)+(me?' (toi)':'')+'<small>'+esc(u.email||'')+'</small></span>'+
+        '<select class="un" data-role="1"'+(me?' disabled':'')+'><option value="responsable"'+(u.role==='responsable'?' selected':'')+'>Responsable</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>Administrateur</option></select>'+
+        '<button type="button" class="sm" data-active="1"'+(me?' disabled':'')+'>'+(u.actif===false?'Réactiver':'Désactiver')+'</button>'+
+        (u.role==='responsable'?'<div class="tmk">'+mkChipsHTML(mk,'data-mk')+'</div>':'')+'</div>';
     }).join('')||'<p class="empty">Aucun compte.</p>';
   });
 }
@@ -778,14 +811,60 @@ function updateProfile(id,patch,okMsg){
     toast(okMsg);renderTeam();
   },function(e){toast('Échec : '+(e&&e.message||'erreur'));renderTeam()});
 }
+var nuSel=[];
+$('#nuRole').addEventListener('change',function(){$('#nuMkWrap').hidden=$('#nuRole').value==='admin'});
+$('#nuMarkets').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-nk]');if(!b)return;
+  var k=b.dataset.nk,i=nuSel.indexOf(k);if(i<0)nuSel.push(k);else nuSel.splice(i,1);
+  b.classList.toggle('on',i<0);
+});
 $('#teamList').addEventListener('change',function(e){
   var s=e.target.closest('select[data-role]');if(!s)return;
   updateProfile(s.closest('.arow').dataset.id,{role:s.value},'Rôle mis à jour ✓');
 });
 $('#teamList').addEventListener('click',function(e){
+  var m=e.target.closest('button[data-mk]');
+  if(m){
+    var row=m.closest('.arow'),cur=row.dataset.marches?row.dataset.marches.split(','):[],k=m.dataset.mk,i=cur.indexOf(k);
+    if(i<0)cur.push(k);else cur.splice(i,1);
+    updateProfile(row.dataset.id,{marches:cur},'Marchés mis à jour ✓');return;
+  }
   var b=e.target.closest('button[data-active]');if(!b)return;
-  var row=b.closest('.arow'),on=row.dataset.actif==='1';
-  updateProfile(row.dataset.id,{actif:!on},on?'Compte désactivé':'Compte réactivé ✓');
+  var row2=b.closest('.arow'),on=row2.dataset.actif==='1';
+  updateProfile(row2.dataset.id,{actif:!on},on?'Compte désactivé':'Compte réactivé ✓');
+});
+
+/* ---------- Équipes : les vendeurs (prénoms, sans compte) de chaque marché ---------- */
+function sellersOf(name){return (name&&S.equipes[slug(name)])||[]}
+function saveEquipe(name,list){
+  var k=slug(name);S.equipes[k]=list;
+  return Store.saveEquipe(k,{market:name,vendeurs:list}).catch(function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
+}
+function renderEquipe(){
+  var ms=markets(),box=$('#equipeList');
+  if(!ms.length){box.innerHTML='<div class="card"><p class="empty">'+(S.role==='admin'?'Aucun marché : crée-les dans Paramètres.':'Aucun marché ne t’est confié pour l’instant.')+'</p></div>';return}
+  var keep=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('.addv');
+  if(keep)return;
+  box.innerHTML=ms.map(function(m){
+    var vs=sellersOf(m.n);
+    return '<div class="card" data-m="'+esc(m.n)+'"><h3>'+esc(m.n)+'</h3>'+
+      (vs.length?'<div class="chips">'+vs.map(function(n,i){return '<span class="chip">'+esc(n)+'<button type="button" data-rmv="'+i+'" aria-label="Retirer '+esc(n)+'">✕</button></span>'}).join('')+'</div>':'<p class="hint">Aucun vendeur pour l’instant.</p>')+
+      '<form class="addv" style="display:flex;gap:8px;margin-top:12px"><input placeholder="Prénom du vendeur" autocomplete="off" style="flex:1;margin:0"><button class="primary" type="submit">Ajouter</button></form></div>';
+  }).join('');
+}
+$('#equipeList').addEventListener('submit',function(e){
+  var f=e.target.closest('form.addv');if(!f)return;e.preventDefault();
+  var m=f.closest('.card').dataset.m,inp=f.querySelector('input'),name=inp.value.trim().replace(/\s+/g,' ');
+  if(!name)return;
+  var vs=sellersOf(m).slice();
+  if(vs.some(function(x){return x.toLowerCase()===name.toLowerCase()})){toast('Ce prénom existe déjà');return}
+  vs.push(name);inp.value='';
+  saveEquipe(m,vs);renderEquipe();toast(name+' ajouté ✓');
+});
+$('#equipeList').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-rmv]');if(!b)return;
+  var m=b.closest('.card').dataset.m,i=Number(b.dataset.rmv);
+  twoStep(b,'Sûr ?',function(){var vs=sellersOf(m).slice();vs.splice(i,1);saveEquipe(m,vs);renderEquipe()});
 });
 
 var Store={db:null,mode:'offline',
@@ -798,8 +877,9 @@ var Store={db:null,mode:'offline',
   saveMarkets:function(){var d=dbDoc('config/marches');return d?d.set({list:S.markets}):noDb()},
   saveAchat:function(a){var d=dbDoc('achats/'+a.id);return d?d.set(a):noDb()},
   deleteAchat:function(id){var d=dbDoc('achats/'+id);return d?d.delete():noDb()},
-  saveMarket:function(o){var d=dbDoc('etat/marche');return d?d.set(o):noDb()},
-  saveDraft:function(o){var d=dbDoc('brouillons/courant');return d?d.set(o):noDb()},
+  saveEquipe:function(k,o){var d=dbDoc('equipes/'+k);return d?d.set(o):noDb()},
+  saveMarket:function(o){var d=dbDoc('etat/marche-'+userKey());return d?d.set(o):noDb()},
+  saveDraft:function(o){var d=dbDoc('brouillons/'+userKey());return d?d.set(o):noDb()},
   offline:function(why){
     this.mode='offline';this.db=null;dataReady=true;marketsReady=true;
     $('#offlineWhy').textContent=why||this.why||'';
@@ -810,15 +890,15 @@ var Store={db:null,mode:'offline',
     var go=function(){
       if(!db){self.offline();return}
       self.db=db;self.mode='db';CAT_DB=!!db.catalogFromDb;$('#modeNote').textContent='Données enregistrées en ligne.';
-      db.doc('brouillons/courant').get().then(function(s){
+      db.doc('brouillons/'+userKey()).get().then(function(s){
         var d=s&&s.exists?s.data():null;
         if(d&&d.date===todayStr()&&d.by){
           draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
           if(Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0){draft.dirty=true;renderSaisie();toast('Saisie en cours reprise')}
         }
-      }).catch(function(){}).then(function(){return db.doc('etat/marche').get()}).then(function(s){
+      }).catch(function(){}).then(function(){return db.doc('etat/marche-'+userKey()).get()}).then(function(s){
         var m=s&&s.exists?s.data():null;
-        if(m&&m.date===todayStr()&&m.market&&!draft.market){draft.market=m.market;closePicker();afterMarket()}
+        if(m&&m.date===todayStr()&&m.market&&!draft.market&&canMarket(slug(m.market))){draft.market=m.market;closePicker();afterMarket()}
         updateMkBtn();
       }).catch(function(){});
       applyRoute();
@@ -848,6 +928,10 @@ var Store={db:null,mode:'offline',
         if(JSON.stringify(list)!==JSON.stringify(S.markets))S.markets=list;
         onData();
       },function(){marketsReady=true;onData()});
+      db.collection('equipes').onSnapshot(function(snap){
+        var eq={};snap.docs.forEach(function(d){eq[d.id]=(clone(d.data()).vendeurs||[])});
+        S.equipes=eq;onData();
+      },function(){});
       db.collection('achats').onSnapshot(function(snap){
         S.achats=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});renderAchats();renderStats();
       },function(){});
@@ -1074,10 +1158,10 @@ function markets(){
   var seen={},out=[];
   S.markets.forEach(function(m){var k=slug(m.name);if(k&&!seen[k]){seen[k]=1;out.push({k:k,n:m.name,days:mdays(m)})}});
   S.releves.concat(S.chargements).forEach(function(r){if(!r.market)return;var k=slug(r.market);if(!seen[k]){seen[k]=1;out.push({k:k,n:r.market,days:[]})}});
-  return out.sort(function(a,b){return a.n.localeCompare(b.n)});
+  return out.filter(function(m){return canMarket(m.k)}).sort(function(a,b){return a.n.localeCompare(b.n)});
 }
 function selMarket(){return $('#statMarket').value}
-function closures(){var mk=selMarket();return S.releves.filter(function(r){return !mk||slug(r.market)===mk})}
+function closures(){var mk=selMarket();return S.releves.filter(function(r){return canMarket(slug(r.market))&&(!mk||slug(r.market)===mk)})}
 function depKeys(dep){return Object.keys(dep||{}).filter(function(p){return dep[p]>0})}
 function ruptures(r,dep){
   var its=r.items||{},keys=depKeys(dep);
@@ -1117,7 +1201,18 @@ $('#histo').addEventListener('click',function(e){
   else if(b.dataset.act==='del')twoStep(b,'Confirmer ?',function(){Store.deleteReleve(id).then(function(){toast('Relevé supprimé')},function(){toast('Suppression impossible')})});
   else if(b.dataset.act==='delc')twoStep(b,'Confirmer ?',function(){Store.deleteChargement(id).then(function(){toast('Chargement supprimé')},function(){toast('Suppression impossible')})});
 });
+function sellersHTML(){
+  var mk=selMarket(),by={};
+  S.ventes.forEach(function(v){
+    var k=slug(v.market);if(!canMarket(k)||(mk&&k!==mk))return;
+    (v.log||[]).forEach(function(t){var n=t.s||'(sans vendeur)';var o=by[n]||(by[n]={n:n,ca:0,t:0});o.ca+=t.v||0;o.t++});
+  });
+  var rows=Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return b.ca-a.ca});
+  if(!rows.length)return '';
+  return '<div class="card"><h3>Ventes par vendeur</h3>'+rows.map(function(r){return '<div class="sellrow"><b>'+esc(r.n)+'</b><span class="hint" style="margin:0">'+r.t+' ticket'+(r.t>1?'s':'')+'</span><b>'+eur(r.ca)+'</b></div>'}).join('')+'</div>';
+}
 function renderKpis(){
+  $('#sellersCard').innerHTML=sellersHTML();
   var box=$('#kpis'),rs=closures();
   if(!rs.length){box.innerHTML='';return}
   var caS=0,caN=0,out=0,left=0;
@@ -1185,6 +1280,32 @@ function readWeight(product){
 /* ============== FIN BALANCE ============== */
 
 var tk={},tkW={},weighing={},vcat='auto',vQueue=Promise.resolve();
+/* Vendeurs : chacun a son propre ticket en cours ; tk/tkW pointent toujours vers celui du vendeur actif */
+var TK={},curSeller='',lastVMarket='';
+function sellerList(){return draft.market?sellersOf(draft.market):[]}
+function selectSeller(name){
+  curSeller=name||'';
+  if(!curSeller){tk={};tkW={};return}
+  if(!TK[curSeller])TK[curSeller]={tk:{},tkW:{}};
+  tk=TK[curSeller].tk;tkW=TK[curSeller].tkW;
+}
+function ensureSeller(){
+  var ls=sellerList();
+  if(draft.market!==lastVMarket){lastVMarket=draft.market;TK={};selectSeller('')}
+  if(!ls.length){if(curSeller)selectSeller('');return true}
+  if(curSeller&&ls.indexOf(curSeller)<0)selectSeller('');
+  if(ls.length===1&&curSeller!==ls[0])selectSeller(ls[0]);
+  return !!curSeller;
+}
+function resetTicket(){tk={};tkW={};if(curSeller)TK[curSeller]={tk:tk,tkW:tkW}}
+function countOf(t){var n=0;if(!t)return 0;Object.keys(t.tk).forEach(function(p){n+=t.tk[p]});Object.keys(t.tkW).forEach(function(p){n+=t.tkW[p].length});return n}
+function renderSellers(){
+  var ls=sellerList(),box=$('#vsellers');
+  box.hidden=!ls.length;
+  box.innerHTML=ls.map(function(n){var c=countOf(TK[n]);return '<button type="button" data-s="'+esc(n)+'" class="'+(n===curSeller?'on':'')+'">'+esc(n)+(c?'<i>'+c+'</i>':'')+'</button>'}).join('');
+}
+function needSeller(){return sellerList().length>0&&!curSeller}
+function nudgeSellers(){var b=$('#vsellers');b.classList.remove('nudge');void b.offsetWidth;b.classList.add('nudge');toast('Choisis ton prénom')}
 function isKg(pid){return S.units[pid]==='kg'}
 function r3(x){return Math.round(x*1000)/1000}
 function fmtKg(w){return w.toLocaleString('fr-FR',{minimumFractionDigits:3,maximumFractionDigits:3})+' kg'}
@@ -1247,15 +1368,18 @@ function renderVgrid(){
   $('#vgrid').innerHTML=ps.length?ps.map(tileHTML).join(''):'<p class="empty" style="grid-column:1/-1">Aucun produit.</p>';
 }
 function renderVente(){
+  ensureSeller();
   var has=!!draft.market,v=curVente(false),hint=$('#vHint');
   if(!has){hint.hidden=false;hint.innerHTML='Choisis un marché pour enregistrer les ventes. <button type="button" id="vPick">Choisir</button>'}
   else if(findReleve(idFor(todayStr(),draft.market))){hint.hidden=false;hint.textContent='La fin de marché d’aujourd’hui est déjà enregistrée : les ventes ajoutées restent comptées dans le CA.'}
   else hint.hidden=true;
-  renderVcats();renderVgrid();renderTicket();renderVlog();
+  renderSellers();renderVcats();renderVgrid();renderTicket();renderVlog();
 }
 function renderTicket(){
+  renderSellers();
   var n=tkCountN(),total=tkTotal(),ids=Object.keys(tk);
-  $('#tkCount').textContent=n?n+' article'+(n>1?'s':''):'Ticket vide';
+  var who=curSeller?curSeller+' · ':'';
+  $('#tkCount').textContent=n?who+n+' article'+(n>1?'s':''):(needSeller()?'Choisis ton prénom':who+'Ticket vide');
   $('#tkTotal').textContent=eur(total);
   $('#tkPay').disabled=!n;
   var html=ids.map(function(pid){
@@ -1273,6 +1397,7 @@ function renderTicket(){
 }
 function afterTk(pid){$('#tkAmount').value='';updateTile(pid);renderTicket()}
 function addTk(pid,d){
+  if(!ensureSeller()){nudgeSellers();return}
   if(isKg(pid)){
     if(d>0){
       if(weighing[pid])return;weighing[pid]=1;
@@ -1300,15 +1425,22 @@ function queueSaveVente(v){
 function pay(){
   var n=tkCountN();if(!n)return;
   if(!draft.market){toast('Choisis d’abord un marché');openPicker();return}
+  if(!ensureSeller()){nudgeSellers();return}
   var v=curVente(true),amt=num($('#tkAmount').value),total=amt!=null?amt:tkTotal();
   Object.keys(tk).forEach(function(p){v.items[p]=r3((v.items[p]||0)+tk[p])});
   Object.keys(tkW).forEach(function(p){v.items[p]=r3((v.items[p]||0)+sumW(tkW[p]))});
-  v.ca=Math.round((v.ca+total)*100)/100;v.n++;v.log.push({t:Date.now(),l:clone(tk),k:clone(tkW),v:total});
-  tk={};tkW={};$('#tkAmount').value='';$('#tkPanel').hidden=true;
-  queueSaveVente(v);renderVente();toast('Vendu ✓ '+eur(total));
+  v.ca=Math.round((v.ca+total)*100)/100;v.n++;v.log.push({t:Date.now(),s:curSeller,l:clone(tk),k:clone(tkW),v:total});
+  resetTicket();$('#tkAmount').value='';$('#tkPanel').hidden=true;
+  var sold=curSeller;if(sellerList().length>1)selectSeller('');
+  queueSaveVente(v);renderVente();toast((sold?sold+' · ':'')+'Vendu ✓ '+eur(total));
 }
 function recallTicket(i){
   var v=curVente(false);if(!v||!v.log[i])return;
+  var ls=sellerList(),want=v.log[i].s;
+  if(ls.length){
+    if(want&&ls.indexOf(want)>=0)selectSeller(want);
+    else if(!ensureSeller()){nudgeSellers();return}
+  }
   var t=v.log.splice(i,1)[0];
   Object.keys(t.l).forEach(function(p){v.items[p]=r3((v.items[p]||0)-t.l[p]);if(v.items[p]<=0)delete v.items[p];tkAddQty(p,t.l[p])});
   Object.keys(t.k||{}).forEach(function(p){v.items[p]=r3((v.items[p]||0)-sumW(t.k[p]));if(v.items[p]<=0)delete v.items[p];setKg(p,(tkW[p]||[]).concat(t.k[p]))});
@@ -1324,7 +1456,7 @@ function renderVlog(){
     var names=Object.keys(t.l).map(function(p){return (isKg(p)?fmtKg(t.l[p])+' ':(t.l[p]>1?t.l[p]+'× ':''))+nameOf(p)});
     Object.keys(t.k||{}).forEach(function(p){t.k[p].forEach(function(w){names.push(fmtKg(w)+' '+nameOf(p))})});
     names=names.join(', ');
-    return '<div class="vlogrow" data-i="'+i+'"><span class="vt">'+new Date(t.t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</span><span class="vi">'+esc(names)+'</span><b>'+eur(t.v)+'</b><button type="button" data-recall="1" aria-label="Rappeler ce ticket">↺</button></div>';
+    return '<div class="vlogrow" data-i="'+i+'"><span class="vt">'+new Date(t.t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</span><span class="vi">'+(t.s?'<b>'+esc(t.s)+'</b> · ':'')+esc(names)+'</span><b>'+eur(t.v)+'</b><button type="button" data-recall="1" aria-label="Rappeler ce ticket">↺</button></div>';
   }).reverse().join('');
 }
 $('#vgrid').addEventListener('click',function(e){var t=e.target.closest('.tile');if(!t)return;addTk(t.dataset.id,e.target.closest('[data-minus]')?-1:1)});
@@ -1335,6 +1467,10 @@ $('#vq').addEventListener('keydown',function(e){
   addTk(t.dataset.id,1);$('#vq').value='';renderVgrid();$('#vq').focus();
 });
 $('#vcats').addEventListener('click',function(e){var b=e.target.closest('button[data-c]');if(!b)return;vcat=b.dataset.c;$('#vq').value='';renderVente()});
+$('#vsellers').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-s]');if(!b)return;
+  selectSeller(b.dataset.s);$('#tkPanel').hidden=true;renderVente();
+});
 $('#vkBtn').addEventListener('click',openPicker);
 $('#vExit').addEventListener('click',function(){showTab('home')});
 $('#vHint').addEventListener('click',function(e){if(e.target.closest('#vPick'))openPicker()});
@@ -1345,7 +1481,7 @@ $('#tkLines').addEventListener('click',function(e){
   var b=e.target.closest('button[data-d]');if(b)addTk(b.closest('.tkl').dataset.id,Number(b.dataset.d));
 });
 $('#tkClear').addEventListener('click',function(e){
-  twoStep(e.currentTarget,'Vider ?',function(){tk={};tkW={};$('#tkAmount').value='';$('#tkPanel').hidden=true;renderVente()});
+  twoStep(e.currentTarget,'Vider ?',function(){resetTicket();$('#tkAmount').value='';$('#tkPanel').hidden=true;renderVente()});
 });
 $('#tkPay').addEventListener('click',function(){try{pay()}catch(e){toast('Erreur encaissement : '+(e&&e.message||e))}});
 $('#vlogList').addEventListener('click',function(e){
@@ -1358,20 +1494,21 @@ var curTab='home';
 function showTab(t){
   if(!allowedTab(t))t='home';
   curTab=t;
-  ['home','saisie','vente','bilan','admin'].forEach(function(x){$('#tab-'+x).hidden=x!==t});
+  ['home','saisie','vente','bilan','admin','equipe'].forEach(function(x){$('#tab-'+x).hidden=x!==t});
   $('#homeBtn').hidden=t==='home';
   $('#saveBar').hidden=t!=='saisie';
   $('#saleBar').hidden=t!=='vente';
   document.body.classList.toggle('sale',t==='vente');
-  if((t==='vente'||t==='saisie')&&!draft.market&&pickerDone)openPicker();
+  if((t==='vente'||t==='saisie')&&!draft.market&&pickerDone&&!autoMarket())openPicker();
   if(t==='vente')renderVente();
   if(t==='admin')renderAdmin();
+  if(t==='equipe')renderEquipe();
   window.scrollTo(0,0);
   setRoute(t,t==='admin'?curSub:t==='saisie'?draft.mode:'');
 }
 
 /* ---------- Routage par l'adresse (#/vente, #/admin/mar...) : on peut actualiser la page sans revenir à l'accueil ---------- */
-var TABS=['home','saisie','vente','bilan','admin'];
+var TABS=['home','saisie','vente','bilan','admin','equipe'];
 function setRoute(tab,sub){
   var hsh=tab==='home'?'':'#/'+tab+(sub?'/'+sub:'');
   if((location.hash||'')!==hsh){
@@ -1398,11 +1535,17 @@ function onData(){
   updateStockLabels();updateMkBtn();renderAdmin();
   maybePicker();renderPicker();
   if(!$('#tab-vente').hidden)renderVente();
+  if(!$('#tab-equipe').hidden)renderEquipe();
+}
+function autoMarket(){
+  if(S.role!=='responsable'||draft.market)return false;
+  var ms=markets();if(ms.length!==1)return false;
+  draft.market=ms[0].n;closePicker();afterMarket();saveMarketSoon();return true;
 }
 function maybePicker(){
   if(pickerDone||!dataReady||!marketsReady)return;
   pickerDone=true;
-  if(!draft.market&&(curTab==='saisie'||curTab==='vente'))openPicker();
+  if(!draft.market&&(curTab==='saisie'||curTab==='vente')&&!autoMarket())openPicker();
 }
 function openPicker(){$('#picker').hidden=false;renderPicker()}
 function closePicker(){$('#picker').hidden=true}

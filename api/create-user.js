@@ -46,7 +46,8 @@ module.exports = async function handler(req, res) {
   const email = String(b.email || '').trim().toLowerCase();
   const password = String(b.password || '');
   const nom = String(b.nom || '').trim().slice(0, 80);
-  const role = b.role === 'admin' ? 'admin' : 'vendeur';
+  const role = b.role === 'admin' ? 'admin' : 'responsable';
+  const marches = Array.isArray(b.marches) ? b.marches.map(String).filter((m) => /^[a-z0-9-]{1,60}$/.test(m)).slice(0, 50) : [];
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return send(res, 400, { error: 'Adresse e-mail invalide' });
   if (password.length < 8) return send(res, 400, { error: 'Mot de passe : 8 caractères minimum' });
 
@@ -62,11 +63,11 @@ module.exports = async function handler(req, res) {
   }
   const id = created.data.id || (created.data.user && created.data.user.id);
 
-  // 5. Profil : créé par le déclencheur (vendeur) ; on l'écrase (upsert) avec le rôle et le nom demandés
+  // 5. Profil : créé par le déclencheur (responsable) ; on l'écrase (upsert) avec le rôle et le nom demandés
   const patch = await sb('/rest/v1/profiles', {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: { id, email, role, nom: nom || null, actif: true },
+    body: { id, email, role, nom: nom || null, actif: true, marches: role === 'admin' ? [] : marches },
   });
   if (!patch.ok) return send(res, 500, { error: 'Compte créé mais profil non mis à jour : ' + JSON.stringify(patch.data) });
 

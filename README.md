@@ -25,10 +25,16 @@ Hébergé sur Vercel (site statique, aucune étape de build).
 
 ## Authentification et permissions
 - Connexion e-mail + mot de passe (Supabase Auth), sans inscription libre : l'admin crée les comptes dans Supabase (Authentication > Users).
-- Rôles (table `profiles`) : **admin** (tout) et **vendeur** (la caisse uniquement : saisir des ventes et encaisser). Gestion dans Paramètres > Équipe.
+- Comptes (table `profiles`) : **admin** (tout) et **responsable** (Saisie, Vente, Bilan et Équipe, limités aux marchés qui lui sont confiés dans Paramètres > Comptes). Les vendeurs n'ont pas de compte.
 - Les droits sont imposés par la base (RLS) : voir `auth.sql`, à exécuter une fois (avant, créer son compte dans Supabase).
 
 ## Création de comptes depuis l'appli (admin)
 Paramètres > Équipe > Nouveau compte appelle `api/create-user.js` (fonction serveur Vercel).
 Elle vérifie que l'appelant est un administrateur connecté, puis crée le compte avec la clé `service_role`.
 À configurer une fois dans Vercel : variable d'environnement **`SUPABASE_SERVICE_ROLE_KEY`** (Supabase > Project Settings > API > `service_role`), puis redéployer. Cette clé ne doit jamais être dans `index.html`.
+
+## Équipes et vendeurs
+- Chaque marché a une équipe fixe de vendeurs (prénoms seulement), gérée dans l'onglet **Équipe** (responsable de ce marché ou admin), stockée dans `equipes/<marché>`.
+- Une seule caisse partagée, connectée par le responsable : en Vente, chaque vendeur touche son prénom puis ses produits ; chacun a son propre ticket en cours, sans gêner les autres. Le ticket encaissé porte le vendeur (`s`) et le Bilan affiche les ventes par vendeur.
+- Les tickets en cours sont en mémoire seulement (perdus si on actualise). Le document de ventes du jour est écrit en entier : une seule caisse par marché.
+- Après mise à jour : exécuter `auth.sql` (migre `vendeur` → `responsable`, ajoute `marches`), puis assigner les marchés dans Paramètres > Comptes.
