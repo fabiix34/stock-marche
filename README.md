@@ -38,3 +38,6 @@ Elle vérifie que l'appelant est un administrateur connecté, puis crée le comp
 - Une seule caisse partagée, connectée par le responsable : en Vente, chaque vendeur touche son prénom puis ses produits ; chacun a son propre ticket en cours, sans gêner les autres. Le ticket encaissé porte le vendeur (`s`) et le Bilan affiche les ventes par vendeur.
 - Les tickets en cours sont en mémoire seulement (perdus si on actualise). Le document de ventes du jour est écrit en entier : une seule caisse par marché.
 - Après mise à jour : exécuter `auth.sql` (migre `vendeur` → `responsable`, ajoute `marches`), puis assigner les marchés dans Paramètres > Comptes.
+
+## Caisse mobile (Android)
+Le dossier `mobile/` contient un prototype d'appli Android (Expo / React Native) pour la vente : un ticket par vendeur, montant ajustable (geste commercial), paiement envoyé au terminal du vendeur (simulé ou SumUp Solo via `api/terminal.js`), choix ticket CB / ticket de caisse imprimés sur une imprimante thermique Bluetooth. Même base Supabase que l'appli web. Voir `mobile/README.md`.

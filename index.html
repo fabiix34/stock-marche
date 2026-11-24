@@ -838,7 +838,8 @@ $('#teamList').addEventListener('click',function(e){
 function sellersOf(name){return (name&&S.equipes[slug(name)])||[]}
 function saveEquipe(name,list){
   var k=slug(name);S.equipes[k]=list;
-  return Store.saveEquipe(k,{market:name,vendeurs:list}).catch(function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
+  /* on garde les autres champs (ex. terminaux de paiement réglés depuis l'appli mobile) */
+  return Store.saveEquipe(k,Object.assign({},(S.equipesDoc||{})[k]||{},{market:name,vendeurs:list})).catch(function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
 }
 function renderEquipe(){
   var ms=markets(),box=$('#equipeList');
@@ -929,8 +930,8 @@ var Store={db:null,mode:'offline',
         onData();
       },function(){marketsReady=true;onData()});
       db.collection('equipes').onSnapshot(function(snap){
-        var eq={};snap.docs.forEach(function(d){eq[d.id]=(clone(d.data()).vendeurs||[])});
-        S.equipes=eq;onData();
+        var eq={},full={};snap.docs.forEach(function(d){full[d.id]=clone(d.data());eq[d.id]=full[d.id].vendeurs||[]});
+        S.equipes=eq;S.equipesDoc=full;onData();
       },function(){});
       db.collection('achats').onSnapshot(function(snap){
         S.achats=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});renderAchats();renderStats();
@@ -1456,7 +1457,7 @@ function renderVlog(){
     var names=Object.keys(t.l).map(function(p){return (isKg(p)?fmtKg(t.l[p])+' ':(t.l[p]>1?t.l[p]+'× ':''))+nameOf(p)});
     Object.keys(t.k||{}).forEach(function(p){t.k[p].forEach(function(w){names.push(fmtKg(w)+' '+nameOf(p))})});
     names=names.join(', ');
-    return '<div class="vlogrow" data-i="'+i+'"><span class="vt">'+new Date(t.t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</span><span class="vi">'+(t.s?'<b>'+esc(t.s)+'</b> · ':'')+esc(names)+'</span><b>'+eur(t.v)+'</b><button type="button" data-recall="1" aria-label="Rappeler ce ticket">↺</button></div>';
+    return '<div class="vlogrow" data-i="'+i+'"><span class="vt">'+new Date(t.t).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})+'</span><span class="vi">'+(t.s?'<b>'+esc(t.s)+'</b> · ':'')+(t.m==='cb'?'💳 ':t.m==='esp'?'💶 ':'')+esc(names)+'</span><b>'+eur(t.v)+'</b><button type="button" data-recall="1" aria-label="Rappeler ce ticket">↺</button></div>';
   }).reverse().join('');
 }
 $('#vgrid').addEventListener('click',function(e){var t=e.target.closest('.tile');if(!t)return;addTk(t.dataset.id,e.target.closest('[data-minus]')?-1:1)});
