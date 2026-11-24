@@ -19,3 +19,6 @@ Elle simule un poids pour l'instant ; c'est la seule fonction à adapter pour br
 - Le catalogue (articles, codes, prix, pièce/kilo, masqués) est lu depuis la table `articles` (`articles.sql`, à exécuter une fois). Si elle est vide, le catalogue intégré à l'appli est utilisé.
 
 L'URL et la clé « publishable » Supabase sont en haut du bloc SUPABASE de `index.html`.
+
+## Déploiement
+Hébergé sur Vercel (site statique, aucune étape de build).
