@@ -797,6 +797,7 @@ function loadReleve(r){
 function setMode(m){
   if(draft.mode===m)return;
   draft.mode=m;$('#q').value='';renderSaisie();window.scrollTo(0,0);
+  setRoute('saisie',m);
 }
 function afterMarket(){
   draft.date=todayStr();
@@ -1208,7 +1209,26 @@ function showTab(t){
   if(t==='vente')renderVente();
   if(t==='admin')renderAdmin();
   window.scrollTo(0,0);
+  setRoute(t,t==='admin'?curSub:t==='saisie'?draft.mode:'');
 }
+
+/* ---------- Routage par l'adresse (#/vente, #/admin/mar...) : on peut actualiser la page sans revenir à l'accueil ---------- */
+var TABS=['home','saisie','vente','bilan','admin'];
+function setRoute(tab,sub){
+  var hsh=tab==='home'?'':'#/'+tab+(sub?'/'+sub:'');
+  if((location.hash||'')!==hsh){
+    if(hsh)location.hash=hsh;else history.pushState(null,'',location.pathname+location.search);
+  }
+}
+function applyRoute(){
+  var m=(location.hash||'').replace(/^#\/?/,'').split('/'),tab=TABS.indexOf(m[0])>=0?m[0]:'home',sub=m[1]||'';
+  if(tab==='admin'&&['prod','mar','ach'].indexOf(sub)>=0)showSub(sub);
+  if(tab==='saisie'&&(sub==='fin'||sub==='charge')&&draft.mode!==sub)setMode(sub);
+  if(tab!==curTab)showTab(tab);
+  else if(tab==='home'||(tab==='saisie'&&sub!==draft.mode)||(tab==='admin'&&sub!==curSub))setRoute(tab,tab==='admin'?curSub:tab==='saisie'?draft.mode:'');
+}
+window.addEventListener('hashchange',applyRoute);
+window.addEventListener('popstate',applyRoute);
 $('#homeBtn').addEventListener('click',function(){showTab('home')});
 $$('.hbtn').forEach(function(b){b.addEventListener('click',function(){showTab(b.dataset.go)})});
 
@@ -1242,7 +1262,8 @@ $('#pickEmpty').addEventListener('click',function(e){if(e.target.closest('#pickG
 $('#pickLater').addEventListener('click',closePicker);
 
 /* ---------- Paramètres ---------- */
-function showSub(s){['prod','mar','ach'].forEach(function(x){$('#sub-'+x).hidden=x!==s});$$('.sub button').forEach(function(b){b.classList.toggle('on',b.dataset.sub===s)})}
+var curSub='prod';
+function showSub(s){curSub=s;['prod','mar','ach'].forEach(function(x){$('#sub-'+x).hidden=x!==s});$$('.sub button').forEach(function(b){b.classList.toggle('on',b.dataset.sub===s)});if(curTab==='admin')setRoute('admin',s)}
 $$('.sub button').forEach(function(b){b.addEventListener('click',function(){showSub(b.dataset.sub)})});
 function renderAdmin(){renderAdmProd();renderAdmMar();renderAchats();renderAcLines();
   $('#prodNames').innerHTML=allProductsAll().map(function(p){return '<option value="'+esc(p.name+' · '+p.cat)+'">'}).join('');
@@ -1429,7 +1450,7 @@ document.addEventListener('visibilitychange',function(){
 });
 
 /* ---------- Démarrage ---------- */
-renderSaisie();fillCatSelect();renderAdmin();showTab('home');
+renderSaisie();fillCatSelect();renderAdmin();curTab='';applyRoute();
 Store.init();
 </script>
 </body>
