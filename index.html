@@ -16,6 +16,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-app
 header{padding:12px 16px 0;max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .back{flex:none;min-height:40px;padding:0 14px;border:1px solid var(--line);background:var(--card);border-radius:12px;font:700 14px inherit;font-family:inherit;color:var(--green);cursor:pointer}
 .who{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:22px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);font-size:14px;color:var(--muted)}
+.pwrow{display:flex;gap:8px;align-items:center}.pwrow input{flex:1;margin:0}.pwrow .ghost{flex:none;min-height:44px}
 .arow.team{grid-template-columns:1fr auto auto}
 .arow.team small{display:block;color:var(--muted);font-weight:400;font-size:12px}
 .homegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
@@ -313,8 +314,19 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
     <div id="sub-team" hidden>
       <div class="card">
         <h3>Équipe</h3>
-        <p class="hint">Pour créer un compte : Supabase → Authentication → Users → Add user (e-mail + mot de passe). Il apparaît ici avec le rôle Vendeur ; passe-le en Administrateur si besoin.<br>Vendeur : la caisse uniquement (saisir des ventes et encaisser). Administrateur : tout.</p>
+        <p class="hint">Vendeur : la caisse uniquement (saisir des ventes et encaisser). Administrateur : tout.</p>
         <div id="teamList"></div>
+      </div>
+      <div class="card">
+        <h3>Nouveau compte</h3>
+        <form id="newUserForm" class="fgrid" autocomplete="off">
+          <label>Nom (facultatif)<input id="nuNom" autocomplete="off" placeholder="ex. Léa"></label>
+          <label>E-mail<input id="nuEmail" type="email" inputmode="email" autocomplete="off" required placeholder="prenom@exemple.fr"></label>
+          <label>Mot de passe (8 caractères minimum)<span class="pwrow"><input id="nuPass" type="text" autocomplete="new-password" minlength="8" required><button class="ghost" id="nuGen" type="button">Générer</button></span></label>
+          <label>Rôle<select id="nuRole"><option value="vendeur">Vendeur (caisse uniquement)</option><option value="admin">Administrateur (tout)</option></select></label>
+          <button class="primary" id="nuBtn" type="submit">Créer le compte</button>
+          <p class="hint" id="nuMsg"></p>
+        </form>
       </div>
     </div>
   </section>
@@ -715,6 +727,36 @@ $('#loginForm').addEventListener('submit',function(e){
 function logout(){if(!AUTH.sb)return;AUTH.sb.auth.signOut().then(function(){location.reload()},function(){location.reload()})}
 $('#logoutBtn').addEventListener('click',logout);
 $('#logoutBtn2').addEventListener('click',logout);
+
+/* Création de compte : appelle /api/create-user (fonction serveur Vercel, réservée aux admins) */
+function genPassword(){
+  var cs='abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789',a=new Uint32Array(12),out='';
+  (window.crypto||{getRandomValues:function(x){for(var i=0;i<x.length;i++)x[i]=Math.floor(Math.random()*4294967296)}}).getRandomValues(a);
+  for(var i=0;i<a.length;i++)out+=cs[a[i]%cs.length];
+  return out;
+}
+$('#nuGen').addEventListener('click',function(){$('#nuPass').value=genPassword()});
+$('#newUserForm').addEventListener('submit',function(e){
+  e.preventDefault();
+  var msg=$('#nuMsg'),btn=$('#nuBtn'),email=$('#nuEmail').value.trim(),pass=$('#nuPass').value;
+  if(!AUTH.sb){msg.textContent='Disponible avec la connexion Supabase uniquement.';return}
+  btn.disabled=true;msg.textContent='Création…';msg.style.color='';
+  AUTH.sb.auth.getSession().then(function(r){
+    var s=r&&r.data&&r.data.session;if(!s)throw new Error('Session expirée, reconnecte-toi');
+    return fetch('/api/create-user',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+s.access_token},
+      body:JSON.stringify({email:email,password:pass,nom:$('#nuNom').value.trim(),role:$('#nuRole').value})});
+  }).then(function(r){
+    return r.json().catch(function(){return {}}).then(function(j){
+      if(!r.ok){throw new Error(r.status===404?'Fonction de création absente : redéploie le projet Vercel':(j.error||'Création impossible'))}
+      return j;
+    });
+  }).then(function(j){
+    msg.textContent='Compte créé ✓ Transmets-lui son e-mail et ce mot de passe : '+pass;
+    $('#nuNom').value='';$('#nuEmail').value='';$('#nuPass').value='';
+    renderTeam();
+  }).catch(function(err){msg.textContent='Échec : '+(err&&err.message||'erreur');msg.style.color='var(--terra)'})
+  .then(function(){btn.disabled=false});
+});
 
 /* Équipe (administrateur) */
 function renderTeam(){

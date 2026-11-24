@@ -27,3 +27,8 @@ Hébergé sur Vercel (site statique, aucune étape de build).
 - Connexion e-mail + mot de passe (Supabase Auth), sans inscription libre : l'admin crée les comptes dans Supabase (Authentication > Users).
 - Rôles (table `profiles`) : **admin** (tout) et **vendeur** (la caisse uniquement : saisir des ventes et encaisser). Gestion dans Paramètres > Équipe.
 - Les droits sont imposés par la base (RLS) : voir `auth.sql`, à exécuter une fois (avant, créer son compte dans Supabase).
+
+## Création de comptes depuis l'appli (admin)
+Paramètres > Équipe > Nouveau compte appelle `api/create-user.js` (fonction serveur Vercel).
+Elle vérifie que l'appelant est un administrateur connecté, puis crée le compte avec la clé `service_role`.
+À configurer une fois dans Vercel : variable d'environnement **`SUPABASE_SERVICE_ROLE_KEY`** (Supabase > Project Settings > API > `service_role`), puis redéployer. Cette clé ne doit jamais être dans `index.html`.
