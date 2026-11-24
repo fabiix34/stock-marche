@@ -14,7 +14,7 @@ Elle simule un poids pour l'instant ; c'est la seule fonction à adapter pour br
 ## Données
 - Dans un artifact Claude : base fournie par Claude (capacité `db`).
 - Ailleurs (Vercel) : **Supabase**, table `docs` (voir `supabase.sql`), synchro en direct entre appareils.
-- Repli `localStorage` si aucune base n'est joignable.
+- **Aucun stockage local** : tout (relevés, ventes, catalogue, brouillon de saisie) est en base. Si la base est injoignable, un écran « Base de données injoignable » bloque l'appli avec la raison.
 
 - Le catalogue (articles, codes, prix, pièce/kilo, masqués) est lu depuis la table `articles` (`articles.sql`, à exécuter une fois). Si elle est vide, le catalogue intégré à l'appli est utilisé.
 

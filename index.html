@@ -315,6 +315,14 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
 </div>
 
 <!-- Pop-up d'ouverture : choix du marché -->
+<div id="offline" class="ov" hidden style="z-index:50;align-items:center">
+  <div class="ovbox" style="text-align:center">
+    <h3>Base de données injoignable</h3>
+    <p class="sub2">Rien n'est enregistré sur cet appareil : sans la base, l'appli ne peut pas fonctionner.</p>
+    <p class="sub2" id="offlineWhy" style="color:var(--terra)"></p>
+    <div class="acts"><button class="primary" type="button" onclick="location.reload()">Réessayer</button></div>
+  </div>
+</div>
 <div id="picker" class="ov" hidden>
   <div class="ovbox">
     <h3>Quel marché ?</h3>
@@ -436,20 +444,10 @@ function resteOf(it){if(it==null)return null;if(typeof it==='number')return it;r
 /* Saisie en cours : une liste de nombres par mode (reste en fin de marché / ajouts au chargement) */
 var draft={mode:'fin',from:'general',market:'',date:todayStr(),ca:null,by:{fin:{},charge:{}},loadedId:null,dirty:false,finSaved:false};
 function D(){return draft.by[draft.mode]}
-var DRAFT_KEY='stock-marche-draft',draftT=null;
+var draftT=null;
 function saveDraftSoon(){
   clearTimeout(draftT);
-  draftT=setTimeout(function(){try{localStorage.setItem(DRAFT_KEY,JSON.stringify({date:todayStr(),by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}))}catch(e){}},300);
-}
-function restoreDraft(){
-  try{
-    var d=JSON.parse(localStorage.getItem(DRAFT_KEY)||'null');
-    if(d&&d.date===todayStr()&&d.by){
-      draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
-      return Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0;
-    }
-  }catch(e){}
-  return false;
+  draftT=setTimeout(function(){Store.saveDraft({date:todayStr(),by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}).catch(function(){})},300);
 }
 
 /* ---------- Stock : on rejoue les chargements et les fins de marché ---------- */
@@ -510,7 +508,7 @@ function makeSupabaseDb(){
       return page(0);
     }
     function loadArticles(){
-      return fetchArticles().then(function(rows){artRows={};rows.forEach(function(r){artRows[r.id]=r});artMode=rows.length>0},function(){artRows={};artMode=false});
+      return Promise.resolve().then(fetchArticles).then(function(rows){artRows={};rows.forEach(function(r){artRows[r.id]=r});artMode=rows.length>0},function(){artRows={};artMode=false});
     }
     function rebuildCatalog(){
       if(!artMode)return;
@@ -616,56 +614,46 @@ function makeSupabaseDb(){
 }
 /* ============== FIN SUPABASE ============== */
 
-var Store={db:null,mode:'local',
-  loadLocal:function(){try{var d=JSON.parse(localStorage.getItem('stock-marche-data')||'{}');S.releves=Object.keys(d.releves||{}).map(function(k){return d.releves[k]});S.chargements=d.chargements||[];S.custom=d.custom||[];S.hidden=d.hidden||[];S.markets=d.markets||[];S.achats=d.achats||[];S.prices=d.prices||{};S.codes=d.codes||{};S.units=d.units||{};S.ventes=d.ventes||[]}catch(e){}},
-  persistLocal:function(){try{var o={releves:{},chargements:S.chargements,custom:S.custom,hidden:S.hidden,markets:S.markets,achats:S.achats,prices:S.prices,codes:S.codes,units:S.units,ventes:S.ventes.map(function(v){var c=clone(v);delete c._rev;delete c._dirty;return c})};S.releves.forEach(function(r){o.releves[r.id]=r});localStorage.setItem('stock-marche-data',JSON.stringify(o))}catch(e){}},
-  saveReleve:function(r){
-    if(this.db)return this.db.doc('releves/'+r.id).set(r);
-    S.releves=S.releves.filter(function(x){return x.id!==r.id}).concat([r]);this.persistLocal();onData();return Promise.resolve();
-  },
-  deleteReleve:function(id){
-    if(this.db)return this.db.doc('releves/'+id).delete();
-    S.releves=S.releves.filter(function(x){return x.id!==id});this.persistLocal();onData();return Promise.resolve();
-  },
-  saveChargement:function(c){
-    if(this.db)return this.db.doc('chargements/'+c.id).set(c);
-    S.chargements=S.chargements.filter(function(x){return x.id!==c.id}).concat([c]);this.persistLocal();onData();return Promise.resolve();
-  },
-  deleteChargement:function(id){
-    if(this.db)return this.db.doc('chargements/'+id).delete();
-    S.chargements=S.chargements.filter(function(x){return x.id!==id});this.persistLocal();onData();return Promise.resolve();
-  },
-  saveVente:function(c){
-    if(this.db)return this.db.doc('ventes/'+c.id).set(c);
-    this.persistLocal();return Promise.resolve();
-  },
-  saveCustom:function(){
-    if(this.db)return this.db.doc('config/produits').set({list:S.custom,hidden:S.hidden,prices:S.prices,codes:S.codes,units:S.units});
-    this.persistLocal();return Promise.resolve();
-  },
-  saveMarkets:function(){
-    if(this.db)return this.db.doc('config/marches').set({list:S.markets});
-    this.persistLocal();return Promise.resolve();
-  },
-  saveAchat:function(a){
-    if(this.db)return this.db.doc('achats/'+a.id).set(a);
-    S.achats=S.achats.filter(function(x){return x.id!==a.id}).concat([a]);this.persistLocal();renderAchats();renderStats();return Promise.resolve();
-  },
-  deleteAchat:function(id){
-    if(this.db)return this.db.doc('achats/'+id).delete();
-    S.achats=S.achats.filter(function(x){return x.id!==id});this.persistLocal();renderAchats();renderStats();return Promise.resolve();
+/* Toutes les données vivent en base. Aucun stockage local : sans base, l'appli est bloquée (écran « injoignable »). */
+function dbDoc(path){
+  if(!Store.db)return null;
+  return Store.db.doc(path);
+}
+function noDb(){return Promise.reject(new Error('base injoignable'))}
+var Store={db:null,mode:'offline',
+  saveReleve:function(r){var d=dbDoc('releves/'+r.id);return d?d.set(r):noDb()},
+  deleteReleve:function(id){var d=dbDoc('releves/'+id);return d?d.delete():noDb()},
+  saveChargement:function(c){var d=dbDoc('chargements/'+c.id);return d?d.set(c):noDb()},
+  deleteChargement:function(id){var d=dbDoc('chargements/'+id);return d?d.delete():noDb()},
+  saveVente:function(c){var d=dbDoc('ventes/'+c.id);return d?d.set(c):noDb()},
+  saveCustom:function(){var d=dbDoc('config/produits');return d?d.set({list:S.custom,hidden:S.hidden,prices:S.prices,codes:S.codes,units:S.units}):noDb()},
+  saveMarkets:function(){var d=dbDoc('config/marches');return d?d.set({list:S.markets}):noDb()},
+  saveAchat:function(a){var d=dbDoc('achats/'+a.id);return d?d.set(a):noDb()},
+  deleteAchat:function(id){var d=dbDoc('achats/'+id);return d?d.delete():noDb()},
+  saveDraft:function(o){var d=dbDoc('brouillons/courant');return d?d.set(o):noDb()},
+  offline:function(why){
+    this.mode='offline';this.db=null;dataReady=true;marketsReady=true;
+    $('#offlineWhy').textContent=why||this.why||'';
+    $('#offline').hidden=false;
   },
   init:function(){
     var self=this,db=null;
     var go=function(){
-      if(!db){self.mode='local';self.loadLocal();$('#modeNote').textContent='Données gardées uniquement sur cet appareil.';dataReady=true;marketsReady=true;renderSaisie();fillCatSelect();onData();return}
-      self.db=db;self.mode='db';CAT_DB=!!db.catalogFromDb;
+      if(!db){self.offline();return}
+      self.db=db;self.mode='db';CAT_DB=!!db.catalogFromDb;$('#modeNote').textContent='Données enregistrées en ligne.';
+      db.doc('brouillons/courant').get().then(function(s){
+        var d=s&&s.exists?s.data():null;
+        if(d&&d.date===todayStr()&&d.by){
+          draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
+          if(Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0){draft.dirty=true;renderSaisie();toast('Saisie en cours reprise')}
+        }
+      },function(){});
       var slow=setTimeout(function(){banner('Connexion lente : les données affichées ne sont peut-être pas à jour.')},10000);
       setTimeout(function(){dataReady=true;marketsReady=true;onData()},5000);
       db.collection('releves').onSnapshot(function(snap){
         if(!snap.metadata.fromCache){clearTimeout(slow);banner('');dataReady=true}
         S.releves=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});onData();
-      },function(){clearTimeout(slow);banner('Impossible de lire la base : mode appareil uniquement.');self.db=null;CAT_DB=false;self.mode='local';self.loadLocal();dataReady=true;marketsReady=true;renderSaisie();onData()});
+      },function(){clearTimeout(slow);self.db=null;CAT_DB=false;self.offline('Lecture de la base impossible')});
       db.collection('chargements').onSnapshot(function(snap){
         S.chargements=snap.docs.map(function(d){var o=clone(d.data());o.id=d.id;return o});onData();
       },function(){});
@@ -693,10 +681,10 @@ var Store={db:null,mode:'local',
     try{
       if(window.claude&&window.claude.use){
         Promise.race([window.claude.use('db'),new Promise(function(r){setTimeout(function(){r(null)},6000)})])
-          .then(function(d){db=d;go()},function(){db=null;go()});
+          .then(function(d){db=d;if(!d)self.why='délai dépassé';go()},function(){db=null;go()});
       }else{
         Promise.race([makeSupabaseDb(),new Promise(function(r){setTimeout(function(){r(null)},10000)})])
-          .then(function(d){db=d;if(!d)banner('Base en ligne injoignable : données gardées sur cet appareil.');go()},function(err){db=null;banner('Base en ligne indisponible ('+(err&&err.message||'erreur')+') : données gardées sur cet appareil.');go()});
+          .then(function(d){db=d;if(!d)self.why='délai dépassé';go()},function(err){db=null;self.why=(err&&err.message)||'erreur';go()});
       }
     }catch(e){go()}
   }
@@ -1133,7 +1121,7 @@ function addTk(pid,d){
 function queueSaveVente(v){
   v._rev=(v._rev||0)+1;v._dirty=true;var rev=v._rev;
   var c=clone(v);delete c._rev;delete c._dirty;c.savedAt=Date.now();
-  vQueue=vQueue.then(function(){return Store.saveVente(c)}).then(function(){if(v._rev===rev)v._dirty=false},function(){toast('Vente non sauvegardée : vérifie ta connexion')});
+  vQueue=vQueue.then(function(){return Store.saveVente(c)}).then(function(){if(v._rev===rev)v._dirty=false},function(e){toast('Vente non sauvegardée : '+(e&&e.message||'connexion'))});
 }
 function pay(){
   var n=tkCountN();if(!n)return;
@@ -1254,7 +1242,7 @@ function renderAdmProd(){
 }
 function saveProducts(msg){
   renderSaisie();fillCatSelect();renderAdmin();
-  Store.saveCustom().then(function(){toast(msg||'Enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+  Store.saveCustom().then(function(){toast(msg||'Enregistré ✓')},function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
 }
 $('#apSearch').addEventListener('input',renderAdmProd);
 $('#apList').addEventListener('click',function(e){
@@ -1271,20 +1259,20 @@ $('#apList').addEventListener('change',function(e){
     if(cc2.code==null)delete S.codes[cid];else S.codes[cid]=cc2.code;
     el.value=codeOf(cid)!=null?codeOf(cid):'';
     renderSaisie();
-    Store.saveCustom().then(function(){toast('Code enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+    Store.saveCustom().then(function(){toast('Code enregistré ✓')},function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
     return;
   }
   if(el.dataset.unit){
     var uid=el.closest('.arow').dataset.id;
     if(el.value==='kg')S.units[uid]='kg';else delete S.units[uid];
     renderAdmProd();
-    Store.saveCustom().then(function(){toast(el.value==='kg'?'Vendu au kilo ⚖ (poids lu sur la balance)':'Vendu à la pièce')},function(){toast('Échec de la sauvegarde')});
+    Store.saveCustom().then(function(){toast(el.value==='kg'?'Vendu au kilo ⚖ (poids lu sur la balance)':'Vendu à la pièce')},function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
     return;
   }
   if(el.dataset.price){
     var pid=el.closest('.arow').dataset.id,pn=num(el.value);
     if(pn==null){delete S.prices[pid];el.value=''}else{S.prices[pid]=pn;el.value=fmtP(pn)}
-    Store.saveCustom().then(function(){toast(pn==null?'Prix retiré':'Prix enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+    Store.saveCustom().then(function(){toast(pn==null?'Prix retiré':'Prix enregistré ✓')},function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
     return;
   }
   if(!el.dataset.rename)return;
@@ -1321,7 +1309,7 @@ function renderAdmMar(){
 }
 function saveMarkets(msg){
   onData();
-  Store.saveMarkets().then(function(){toast(msg||'Enregistré ✓')},function(){toast('Échec de la sauvegarde')});
+  Store.saveMarkets().then(function(){toast(msg||'Enregistré ✓')},function(e){toast('Échec : '+(e&&e.message||'sauvegarde'))});
 }
 $('#admMarForm').addEventListener('submit',function(e){
   e.preventDefault();
@@ -1420,10 +1408,7 @@ document.addEventListener('visibilitychange',function(){
 });
 
 /* ---------- Démarrage ---------- */
-var restored=restoreDraft();
-if(restored){draft.dirty=true}
 renderSaisie();fillCatSelect();renderAdmin();showTab('saisie');
-if(restored)toast('Saisie en cours reprise');
 Store.init();
 </script>
 </body>
