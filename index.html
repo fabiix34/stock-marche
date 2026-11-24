@@ -463,7 +463,7 @@ function D(){return draft.by[draft.mode]}
 var draftT=null;
 function saveDraftSoon(){
   clearTimeout(draftT);
-  draftT=setTimeout(function(){Store.saveDraft({date:todayStr(),by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}).catch(function(){})},300);
+  draftT=setTimeout(function(){Store.saveDraft({date:todayStr(),market:draft.market||'',by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}).catch(function(){})},300);
 }
 
 /* ---------- Stock : on rejoue les chargements et les fins de marché ---------- */
@@ -659,9 +659,15 @@ var Store={db:null,mode:'offline',
       self.db=db;self.mode='db';CAT_DB=!!db.catalogFromDb;$('#modeNote').textContent='Données enregistrées en ligne.';
       db.doc('brouillons/courant').get().then(function(s){
         var d=s&&s.exists?s.data():null;
-        if(d&&d.date===todayStr()&&d.by){
-          draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
-          if(Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0){draft.dirty=true;renderSaisie();toast('Saisie en cours reprise')}
+        if(d&&d.date===todayStr()){
+          var had=false;
+          if(d.by){
+            draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
+            if(Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0){draft.dirty=true;had=true}
+          }
+          if(d.market&&!draft.market){draft.market=d.market;closePicker();afterMarket()}
+          renderSaisie();updateMkBtn();
+          if(had)toast('Saisie en cours reprise');
         }
       },function(){});
       var slow=setTimeout(function(){banner('Connexion lente : les données affichées ne sont peut-être pas à jour.')},10000);
@@ -1256,7 +1262,7 @@ function renderPicker(){
 }
 $('#pickChips').addEventListener('click',function(e){
   var b=e.target.closest('button[data-m]');if(!b)return;
-  draft.market=b.dataset.m;closePicker();afterMarket();
+  draft.market=b.dataset.m;closePicker();afterMarket();saveDraftSoon();
 });
 $('#pickEmpty').addEventListener('click',function(e){if(e.target.closest('#pickGo')){closePicker();showTab('admin');showSub('mar')}});
 $('#pickLater').addEventListener('click',closePicker);
@@ -1445,7 +1451,7 @@ function achatsStatsHTML(){
 /* App laissée ouverte d'un jour à l'autre : on repart d'une saisie propre */
 document.addEventListener('visibilitychange',function(){
   if(document.hidden||draft.date===todayStr()||!draft.finSaved)return;
-  draft.by.fin={};draft.loadedId=null;draft.ca=null;draft.finSaved=false;draft.dirty=false;draft.date=todayStr();draft.market='';
+  draft.by.fin={};draft.loadedId=null;draft.ca=null;draft.finSaved=false;draft.dirty=false;draft.date=todayStr();draft.market='';saveDraftSoon();
   renderSaisie();if(curTab==='saisie'||curTab==='vente')openPicker();
 });
 
