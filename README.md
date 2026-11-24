@@ -12,4 +12,8 @@ La lecture du poids est isolée dans la fonction `readWeight(product)` (bloc « 
 Elle simule un poids pour l'instant ; c'est la seule fonction à adapter pour brancher une vraie balance.
 
 ## Données
-Base Firestore via la capacité `db` des artifacts Claude, avec repli en `localStorage`.
+- Dans un artifact Claude : base fournie par Claude (capacité `db`).
+- Ailleurs (Vercel) : **Supabase**, table `docs` (voir `supabase.sql`), synchro en direct entre appareils.
+- Repli `localStorage` si aucune base n'est joignable.
+
+L'URL et la clé « publishable » Supabase sont en haut du bloc SUPABASE de `index.html`.

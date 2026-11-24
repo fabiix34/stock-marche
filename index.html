@@ -481,6 +481,85 @@ function ledger(){
 var L={stock:{},byId:{},byM:{}};
 
 /* ---------- Stockage (base partagée, sinon cet appareil) ---------- */
+/* ================= SUPABASE =================
+   Hors de Claude (Vercel...), la base est Supabase : une table `docs` (path, data jsonb).
+   makeSupabaseDb() expose la même interface que la base Claude (doc/collection, set/delete/onSnapshot),
+   le reste de l'appli n'a donc rien à savoir de la base utilisée.
+   La clé "publishable" est publique par nature (protégée par les règles RLS côté Supabase). */
+var SUPABASE_URL='https://uvjiyzaonvxioehsovni.supabase.co';
+var SUPABASE_KEY='sb_publishable_2yPUnVhppfOuLRtvtICuqQ_R8EmXgpw';
+function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('Impossible de charger '+src))};document.head.appendChild(s)})}
+function makeSupabaseDb(){
+  var ready=window.supabase?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
+  return ready.then(function(){
+    var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    var cache={},lastLocal={},docL=[],colL=[];
+    function fetchAll(){
+      var all=[];
+      function page(from){
+        return sb.from('docs').select('path,data').range(from,from+999).then(function(r){
+          if(r.error)throw new Error(r.error.message);
+          all=all.concat(r.data||[]);
+          return (r.data||[]).length===1000?page(from+1000):all;
+        });
+      }
+      return page(0);
+    }
+    function snapDoc(path){return {exists:cache[path]!==undefined,data:function(){return cache[path]},metadata:{fromCache:false}}}
+    function snapCol(name){
+      var pre=name+'/';
+      return {docs:Object.keys(cache).filter(function(k){return k.indexOf(pre)===0}).map(function(k){return {id:k.slice(pre.length),data:function(){return cache[k]}}}),metadata:{fromCache:false}};
+    }
+    function emit(){
+      docL.forEach(function(l){try{l.cb(snapDoc(l.path))}catch(e){}});
+      colL.forEach(function(l){try{l.cb(snapCol(l.name))}catch(e){}});
+    }
+    function recentLocal(path){return lastLocal[path]&&Date.now()-lastLocal[path]<3000}
+    function refresh(){
+      return fetchAll().then(function(rows){
+        var next={},changed=false;
+        rows.forEach(function(r){next[r.path]=r.data});
+        Object.keys(cache).forEach(function(k){if(recentLocal(k)&&next[k]===undefined)next[k]=cache[k]});
+        Object.keys(next).forEach(function(k){if(recentLocal(k))next[k]=cache[k]});
+        changed=JSON.stringify(next)!==JSON.stringify(cache);
+        cache=next;if(changed)emit();
+      }).catch(function(){});
+    }
+    return fetchAll().then(function(rows){
+      rows.forEach(function(r){cache[r.path]=r.data});
+      sb.channel('docs-sync').on('postgres_changes',{event:'*',schema:'public',table:'docs'},function(pl){
+        var row=pl.eventType==='DELETE'?pl.old:pl.new;if(!row||!row.path)return;
+        if(recentLocal(row.path))return;
+        if(pl.eventType==='DELETE')delete cache[row.path];else cache[row.path]=row.data;
+        emit();
+      }).subscribe(function(status){if(status==='SUBSCRIBED')refresh()});
+      document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh()});
+      setInterval(refresh,30000);
+      return {
+        doc:function(path){return {
+          set:function(data){
+            cache[path]=JSON.parse(JSON.stringify(data));lastLocal[path]=Date.now();emit();
+            return sb.from('docs').upsert({path:path,data:data,updated_at:new Date().toISOString()}).then(function(r){
+              lastLocal[path]=Date.now();
+              if(r.error){refresh();throw new Error(r.error.message)}
+            });
+          },
+          get:function(){return Promise.resolve(snapDoc(path))},
+          delete:function(){
+            delete cache[path];lastLocal[path]=Date.now();emit();
+            return sb.from('docs').delete().eq('path',path).then(function(r){lastLocal[path]=Date.now();if(r.error){refresh();throw new Error(r.error.message)}});
+          },
+          onSnapshot:function(cb){var l={path:path,cb:cb};docL.push(l);setTimeout(function(){cb(snapDoc(path))},0);return function(){docL=docL.filter(function(x){return x!==l})}}
+        }},
+        collection:function(name){return {
+          onSnapshot:function(cb){var l={name:name,cb:cb};colL.push(l);setTimeout(function(){cb(snapCol(name))},0);return function(){colL=colL.filter(function(x){return x!==l})}}
+        }}
+      };
+    });
+  });
+}
+/* ============== FIN SUPABASE ============== */
+
 var Store={db:null,mode:'local',
   loadLocal:function(){try{var d=JSON.parse(localStorage.getItem('stock-marche-data')||'{}');S.releves=Object.keys(d.releves||{}).map(function(k){return d.releves[k]});S.chargements=d.chargements||[];S.custom=d.custom||[];S.hidden=d.hidden||[];S.markets=d.markets||[];S.achats=d.achats||[];S.prices=d.prices||{};S.codes=d.codes||{};S.units=d.units||{};S.ventes=d.ventes||[]}catch(e){}},
   persistLocal:function(){try{var o={releves:{},chargements:S.chargements,custom:S.custom,hidden:S.hidden,markets:S.markets,achats:S.achats,prices:S.prices,codes:S.codes,units:S.units,ventes:S.ventes.map(function(v){var c=clone(v);delete c._rev;delete c._dirty;return c})};S.releves.forEach(function(r){o.releves[r.id]=r});localStorage.setItem('stock-marche-data',JSON.stringify(o))}catch(e){}},
@@ -559,7 +638,10 @@ var Store={db:null,mode:'local',
       if(window.claude&&window.claude.use){
         Promise.race([window.claude.use('db'),new Promise(function(r){setTimeout(function(){r(null)},6000)})])
           .then(function(d){db=d;go()},function(){db=null;go()});
-      }else go();
+      }else{
+        Promise.race([makeSupabaseDb(),new Promise(function(r){setTimeout(function(){r(null)},10000)})])
+          .then(function(d){db=d;if(!d)banner('Base en ligne injoignable : données gardées sur cet appareil.');go()},function(err){db=null;banner('Base en ligne indisponible ('+(err&&err.message||'erreur')+') : données gardées sur cet appareil.');go()});
+      }
     }catch(e){go()}
   }
 };
