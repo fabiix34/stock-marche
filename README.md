@@ -22,3 +22,8 @@ L'URL et la clé « publishable » Supabase sont en haut du bloc SUPABASE de `in
 
 ## Déploiement
 Hébergé sur Vercel (site statique, aucune étape de build).
+
+## Authentification et permissions
+- Connexion e-mail + mot de passe (Supabase Auth), sans inscription libre : l'admin crée les comptes dans Supabase (Authentication > Users).
+- Rôles (table `profiles`) : **admin** (tout) et **vendeur** (la caisse uniquement : saisir des ventes et encaisser). Gestion dans Paramètres > Équipe.
+- Les droits sont imposés par la base (RLS) : voir `auth.sql`, à exécuter une fois (avant, créer son compte dans Supabase).

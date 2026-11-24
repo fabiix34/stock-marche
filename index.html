@@ -15,6 +15,9 @@ html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding-bottom:96px}
 header{padding:12px 16px 0;max-width:760px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .back{flex:none;min-height:40px;padding:0 14px;border:1px solid var(--line);background:var(--card);border-radius:12px;font:700 14px inherit;font-family:inherit;color:var(--green);cursor:pointer}
+.who{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:22px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--card);font-size:14px;color:var(--muted)}
+.arow.team{grid-template-columns:1fr auto auto}
+.arow.team small{display:block;color:var(--muted);font-weight:400;font-size:12px}
 .homegrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
 .hbtn{min-height:170px;border:1px solid var(--line);background:var(--card);border-radius:18px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;align-items:flex-start;text-align:left;cursor:pointer;font-family:inherit;color:var(--ink);touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .hbtn:active{transform:scale(.98);background:var(--green-soft)}
@@ -213,6 +216,7 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
       <button class="hbtn" type="button" data-go="bilan"><span class="hi">📊</span><span><b>Bilan</b><small>Historique, CA et stats</small></span></button>
       <button class="hbtn" type="button" data-go="admin"><span class="hi">⚙️</span><span><b>Paramètres</b><small>Produits, marchés et achats</small></span></button>
     </div>
+    <div id="whoami" class="who" hidden><span id="whoText"></span><button id="logoutBtn" class="back" type="button">Se déconnecter</button></div>
   </section>
 
   <section id="tab-saisie">
@@ -256,7 +260,7 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
   </section>
 
   <section id="tab-admin" hidden>
-    <div class="sub"><button data-sub="prod" class="on">Produits</button><button data-sub="mar">Marchés</button><button data-sub="ach">Achats</button></div>
+    <div class="sub"><button data-sub="prod" class="on">Produits</button><button data-sub="mar">Marchés</button><button data-sub="ach">Achats</button><button data-sub="team" hidden>Équipe</button></div>
 
     <div id="sub-prod">
       <div class="card">
@@ -305,6 +309,14 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
       <div id="acKpi"></div>
       <div id="acList"></div>
     </div>
+
+    <div id="sub-team" hidden>
+      <div class="card">
+        <h3>Équipe</h3>
+        <p class="hint">Pour créer un compte : Supabase → Authentication → Users → Add user (e-mail + mot de passe). Il apparaît ici avec le rôle Vendeur ; passe-le en Administrateur si besoin.<br>Vendeur : la caisse uniquement (saisir des ventes et encaisser). Administrateur : tout.</p>
+        <div id="teamList"></div>
+      </div>
+    </div>
   </section>
 
   <p class="local" id="modeNote"></p>
@@ -331,6 +343,18 @@ body.sale .tile .vp,body.sale .tkl .tpv{display:none}
 </div>
 
 <!-- Pop-up d'ouverture : choix du marché -->
+<div id="login" class="ov" hidden style="z-index:60;align-items:center">
+  <div class="ovbox">
+    <h3>Connexion</h3>
+    <p class="sub2" id="loginMsg"></p>
+    <form id="loginForm">
+      <label>E-mail<input id="loginEmail" type="email" autocomplete="username" inputmode="email" required></label>
+      <label>Mot de passe<input id="loginPass" type="password" autocomplete="current-password" required></label>
+      <div class="acts"><button class="primary" type="submit">Se connecter</button></div>
+    </form>
+    <div class="acts"><button class="ghost" id="logoutBtn2" type="button" hidden>Se déconnecter</button></div>
+  </div>
+</div>
 <div id="offline" class="ov" hidden style="z-index:50;align-items:center">
   <div class="ovbox" style="text-align:center">
     <h3>Base de données injoignable</h3>
@@ -433,7 +457,7 @@ function banner(msg){var b=$('#banner');b.textContent=msg;b.hidden=!msg}
 /* ---------- État ---------- */
 var DEFAULTS=[];
 CATALOG.forEach(function(c){c[1].forEach(function(n){DEFAULTS.push({id:slug(c[0]+' '+n),name:n,cat:c[0]})})});
-var S={releves:[],chargements:[],custom:[],hidden:[],markets:[],achats:[],prices:{},codes:{},units:{},ventes:[]};
+var S={releves:[],chargements:[],custom:[],hidden:[],markets:[],achats:[],prices:{},codes:{},units:{},ventes:[],role:'admin'};
 var CAT_DB=false; /* vrai quand le catalogue vient de la table `articles` (Supabase) */
 function allProductsAll(){return CAT_DB?S.custom:DEFAULTS.concat(S.custom)}
 function allProducts(){return allProductsAll().filter(function(p){return S.hidden.indexOf(p.id)<0})}
@@ -461,9 +485,10 @@ function resteOf(it){if(it==null)return null;if(typeof it==='number')return it;r
 var draft={mode:'fin',from:'general',market:'',date:todayStr(),ca:null,by:{fin:{},charge:{}},loadedId:null,dirty:false,finSaved:false};
 function D(){return draft.by[draft.mode]}
 var draftT=null;
+function saveMarketSoon(){Store.saveMarket({date:todayStr(),market:draft.market||''}).catch(function(){})}
 function saveDraftSoon(){
   clearTimeout(draftT);
-  draftT=setTimeout(function(){Store.saveDraft({date:todayStr(),market:draft.market||'',by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}).catch(function(){})},300);
+  draftT=setTimeout(function(){Store.saveDraft({date:todayStr(),by:{fin:draft.finSaved?{}:draft.by.fin,charge:draft.by.charge}}).catch(function(){})},300);
 }
 
 /* ---------- Stock : on rejoue les chargements et les fins de marché ---------- */
@@ -504,10 +529,8 @@ var L={stock:{},byId:{},byM:{}};
 var SUPABASE_URL='https://uvjiyzaonvxioehsovni.supabase.co';
 var SUPABASE_KEY='sb_publishable_2yPUnVhppfOuLRtvtICuqQ_R8EmXgpw';
 function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('Impossible de charger '+src))};document.head.appendChild(s)})}
-function makeSupabaseDb(){
-  var ready=window.supabase?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
-  return ready.then(function(){
-    var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+function makeSupabaseDb(sb){
+  return Promise.resolve().then(function(){
     var cache={},lastLocal={},docL=[],colL=[],artRows={},artMode=false,artTimer=null;
     /* --- Catalogue : table `articles` (id, nom, categorie, code, prix, unite, actif, ordre) ---
        Si elle contient des lignes, elle devient la source des produits : on l'expose à l'appli
@@ -636,6 +659,93 @@ function dbDoc(path){
   return Store.db.doc(path);
 }
 function noDb(){return Promise.reject(new Error('base injoignable'))}
+/* ================= AUTHENTIFICATION & PERMISSIONS =================
+   Connexion e-mail + mot de passe (Supabase Auth). Pas d'inscription libre : les comptes sont créés
+   par l'administrateur dans Supabase. Chaque compte a un profil (table `profiles`) avec un rôle :
+     admin   : tout
+     vendeur : la caisse uniquement (saisir des ventes et encaisser)
+   Les droits réels sont imposés par la base (RLS, voir auth.sql) ; ce code ne fait que masquer l'interface. */
+var AUTH={sb:null,user:null,profile:null,resolve:null};
+var ROLE_TABS={admin:['home','saisie','vente','bilan','admin'],vendeur:['home','vente']};
+function allowedTab(t){return (ROLE_TABS[S.role]||ROLE_TABS.admin).indexOf(t)>=0}
+function withTimeout(p,ms,msg){return Promise.race([p,new Promise(function(_,rej){setTimeout(function(){rej(new Error(msg||'délai dépassé'))},ms)})])}
+function showLogin(msg,blocked){
+  $('#login').hidden=false;$('#loginMsg').textContent=msg||'';
+  $('#loginForm').hidden=!!blocked;$('#logoutBtn2').hidden=!blocked;
+}
+function applyRole(){
+  $$('.hbtn').forEach(function(b){b.hidden=!allowedTab(b.dataset.go)});
+  var who=(AUTH.profile&&(AUTH.profile.nom||AUTH.profile.email))||'';
+  $('#whoText').textContent=who+' · '+(S.role==='admin'?'Administrateur':'Vendeur');
+  $('#whoami').hidden=false;
+  $('[data-sub="team"]').hidden=S.role!=='admin';
+}
+function connectSupabase(){
+  var ready=window.supabase?Promise.resolve():loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js');
+  return withTimeout(ready,10000,'chargement de la bibliothèque impossible').then(function(){
+    var sb=AUTH.sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    sb.auth.onAuthStateChange(function(ev){if(ev==='SIGNED_OUT'&&AUTH.user)location.reload()});
+    return withTimeout(sb.auth.getSession(),10000,'session injoignable');
+  }).then(function(r){
+    var s=r&&r.data&&r.data.session;
+    if(s)return s;
+    return new Promise(function(res){AUTH.resolve=res;showLogin('')});
+  }).then(function(session){
+    AUTH.user=session.user;
+    return withTimeout(AUTH.sb.from('profiles').select('*').eq('id',session.user.id),10000,'profil injoignable');
+  }).then(function(r){
+    if(r.error)throw new Error(r.error.message);
+    var p=(r.data||[])[0];
+    if(!p||p.actif===false||['admin','vendeur'].indexOf(p.role)<0){
+      showLogin('Ce compte n’est pas autorisé. Demande à un administrateur de l’activer.',true);
+      return new Promise(function(){});
+    }
+    AUTH.profile=p;S.role=p.role;applyRole();
+    return withTimeout(makeSupabaseDb(AUTH.sb),15000,'délai dépassé');
+  });
+}
+$('#loginForm').addEventListener('submit',function(e){
+  e.preventDefault();$('#loginMsg').textContent='Connexion…';
+  AUTH.sb.auth.signInWithPassword({email:$('#loginEmail').value.trim(),password:$('#loginPass').value}).then(function(r){
+    if(r.error||!r.data||!r.data.session){$('#loginMsg').textContent='E-mail ou mot de passe incorrect.';return}
+    $('#login').hidden=true;$('#loginPass').value='';$('#loginMsg').textContent='';
+    if(AUTH.resolve){var f=AUTH.resolve;AUTH.resolve=null;f(r.data.session)}
+  },function(){$('#loginMsg').textContent='Connexion impossible, réessaie.'});
+});
+function logout(){if(!AUTH.sb)return;AUTH.sb.auth.signOut().then(function(){location.reload()},function(){location.reload()})}
+$('#logoutBtn').addEventListener('click',logout);
+$('#logoutBtn2').addEventListener('click',logout);
+
+/* Équipe (administrateur) */
+function renderTeam(){
+  var box=$('#teamList');
+  if(!AUTH.sb){box.innerHTML='<p class="empty">Disponible avec la connexion Supabase uniquement.</p>';return}
+  AUTH.sb.from('profiles').select('*').order('email').then(function(r){
+    if(r.error){box.innerHTML='<p class="empty">'+esc(r.error.message)+'</p>';return}
+    box.innerHTML=(r.data||[]).map(function(u){
+      var me=AUTH.user&&u.id===AUTH.user.id;
+      return '<div class="arow team" data-id="'+esc(u.id)+'" data-actif="'+(u.actif===false?'0':'1')+'"><span class="an'+(u.actif===false?' off':'')+'">'+esc(u.nom||u.email||u.id)+(me?' (toi)':'')+'<small>'+esc(u.email||'')+'</small></span>'+
+        '<select class="un" data-role="1"'+(me?' disabled':'')+'><option value="vendeur"'+(u.role==='vendeur'?' selected':'')+'>Vendeur</option><option value="admin"'+(u.role==='admin'?' selected':'')+'>Administrateur</option></select>'+
+        '<button type="button" class="sm" data-active="1"'+(me?' disabled':'')+'>'+(u.actif===false?'Réactiver':'Désactiver')+'</button></div>';
+    }).join('')||'<p class="empty">Aucun compte.</p>';
+  });
+}
+function updateProfile(id,patch,okMsg){
+  AUTH.sb.from('profiles').update(patch).eq('id',id).then(function(r){
+    if(r.error){toast('Échec : '+r.error.message);renderTeam();return}
+    toast(okMsg);renderTeam();
+  },function(e){toast('Échec : '+(e&&e.message||'erreur'));renderTeam()});
+}
+$('#teamList').addEventListener('change',function(e){
+  var s=e.target.closest('select[data-role]');if(!s)return;
+  updateProfile(s.closest('.arow').dataset.id,{role:s.value},'Rôle mis à jour ✓');
+});
+$('#teamList').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-active]');if(!b)return;
+  var row=b.closest('.arow'),on=row.dataset.actif==='1';
+  updateProfile(row.dataset.id,{actif:!on},on?'Compte désactivé':'Compte réactivé ✓');
+});
+
 var Store={db:null,mode:'offline',
   saveReleve:function(r){var d=dbDoc('releves/'+r.id);return d?d.set(r):noDb()},
   deleteReleve:function(id){var d=dbDoc('releves/'+id);return d?d.delete():noDb()},
@@ -646,6 +756,7 @@ var Store={db:null,mode:'offline',
   saveMarkets:function(){var d=dbDoc('config/marches');return d?d.set({list:S.markets}):noDb()},
   saveAchat:function(a){var d=dbDoc('achats/'+a.id);return d?d.set(a):noDb()},
   deleteAchat:function(id){var d=dbDoc('achats/'+id);return d?d.delete():noDb()},
+  saveMarket:function(o){var d=dbDoc('etat/marche');return d?d.set(o):noDb()},
   saveDraft:function(o){var d=dbDoc('brouillons/courant');return d?d.set(o):noDb()},
   offline:function(why){
     this.mode='offline';this.db=null;dataReady=true;marketsReady=true;
@@ -659,17 +770,16 @@ var Store={db:null,mode:'offline',
       self.db=db;self.mode='db';CAT_DB=!!db.catalogFromDb;$('#modeNote').textContent='Données enregistrées en ligne.';
       db.doc('brouillons/courant').get().then(function(s){
         var d=s&&s.exists?s.data():null;
-        if(d&&d.date===todayStr()){
-          var had=false;
-          if(d.by){
-            draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
-            if(Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0){draft.dirty=true;had=true}
-          }
-          if(d.market&&!draft.market){draft.market=d.market;closePicker();afterMarket()}
-          renderSaisie();updateMkBtn();
-          if(had)toast('Saisie en cours reprise');
+        if(d&&d.date===todayStr()&&d.by){
+          draft.by.fin=d.by.fin||{};draft.by.charge=d.by.charge||{};
+          if(Object.keys(draft.by.fin).length+Object.keys(draft.by.charge).length>0){draft.dirty=true;renderSaisie();toast('Saisie en cours reprise')}
         }
-      },function(){});
+      }).catch(function(){}).then(function(){return db.doc('etat/marche').get()}).then(function(s){
+        var m=s&&s.exists?s.data():null;
+        if(m&&m.date===todayStr()&&m.market&&!draft.market){draft.market=m.market;closePicker();afterMarket()}
+        updateMkBtn();
+      }).catch(function(){});
+      applyRoute();
       var slow=setTimeout(function(){banner('Connexion lente : les données affichées ne sont peut-être pas à jour.')},10000);
       setTimeout(function(){dataReady=true;marketsReady=true;onData()},5000);
       db.collection('releves').onSnapshot(function(snap){
@@ -705,8 +815,7 @@ var Store={db:null,mode:'offline',
         Promise.race([window.claude.use('db'),new Promise(function(r){setTimeout(function(){r(null)},6000)})])
           .then(function(d){db=d;if(!d)self.why='délai dépassé';go()},function(){db=null;go()});
       }else{
-        Promise.race([makeSupabaseDb(),new Promise(function(r){setTimeout(function(){r(null)},10000)})])
-          .then(function(d){db=d;if(!d)self.why='délai dépassé';go()},function(err){db=null;self.why=(err&&err.message)||'erreur';go()});
+        connectSupabase().then(function(d){db=d;go()},function(err){db=null;self.why=(err&&err.message)||'erreur';go()});
       }
     }catch(e){go()}
   }
@@ -1205,6 +1314,7 @@ $('#vlogList').addEventListener('click',function(e){
 /* ---------- Onglets, données, pop-up d'ouverture ---------- */
 var curTab='home';
 function showTab(t){
+  if(!allowedTab(t))t='home';
   curTab=t;
   ['home','saisie','vente','bilan','admin'].forEach(function(x){$('#tab-'+x).hidden=x!==t});
   $('#homeBtn').hidden=t==='home';
@@ -1227,8 +1337,8 @@ function setRoute(tab,sub){
   }
 }
 function applyRoute(){
-  var m=(location.hash||'').replace(/^#\/?/,'').split('/'),tab=TABS.indexOf(m[0])>=0?m[0]:'home',sub=m[1]||'';
-  if(tab==='admin'&&['prod','mar','ach'].indexOf(sub)>=0)showSub(sub);
+  var m=(location.hash||'').replace(/^#\/?/,'').split('/'),tab=TABS.indexOf(m[0])>=0&&allowedTab(m[0])?m[0]:'home',sub=m[1]||'';
+  if(tab==='admin'&&['prod','mar','ach','team'].indexOf(sub)>=0)showSub(sub);
   if(tab==='saisie'&&(sub==='fin'||sub==='charge')&&draft.mode!==sub)setMode(sub);
   if(tab!==curTab)showTab(tab);
   else if(tab==='home'||(tab==='saisie'&&sub!==draft.mode)||(tab==='admin'&&sub!==curSub))setRoute(tab,tab==='admin'?curSub:tab==='saisie'?draft.mode:'');
@@ -1262,14 +1372,14 @@ function renderPicker(){
 }
 $('#pickChips').addEventListener('click',function(e){
   var b=e.target.closest('button[data-m]');if(!b)return;
-  draft.market=b.dataset.m;closePicker();afterMarket();saveDraftSoon();
+  draft.market=b.dataset.m;closePicker();afterMarket();saveMarketSoon();
 });
 $('#pickEmpty').addEventListener('click',function(e){if(e.target.closest('#pickGo')){closePicker();showTab('admin');showSub('mar')}});
 $('#pickLater').addEventListener('click',closePicker);
 
 /* ---------- Paramètres ---------- */
 var curSub='prod';
-function showSub(s){curSub=s;['prod','mar','ach'].forEach(function(x){$('#sub-'+x).hidden=x!==s});$$('.sub button').forEach(function(b){b.classList.toggle('on',b.dataset.sub===s)});if(curTab==='admin')setRoute('admin',s)}
+function showSub(s){curSub=s;if(s==='team')renderTeam();['prod','mar','ach','team'].forEach(function(x){$('#sub-'+x).hidden=x!==s});$$('.sub button').forEach(function(b){b.classList.toggle('on',b.dataset.sub===s)});if(curTab==='admin')setRoute('admin',s)}
 $$('.sub button').forEach(function(b){b.addEventListener('click',function(){showSub(b.dataset.sub)})});
 function renderAdmin(){renderAdmProd();renderAdmMar();renderAchats();renderAcLines();
   $('#prodNames').innerHTML=allProductsAll().map(function(p){return '<option value="'+esc(p.name+' · '+p.cat)+'">'}).join('');
@@ -1451,7 +1561,7 @@ function achatsStatsHTML(){
 /* App laissée ouverte d'un jour à l'autre : on repart d'une saisie propre */
 document.addEventListener('visibilitychange',function(){
   if(document.hidden||draft.date===todayStr()||!draft.finSaved)return;
-  draft.by.fin={};draft.loadedId=null;draft.ca=null;draft.finSaved=false;draft.dirty=false;draft.date=todayStr();draft.market='';saveDraftSoon();
+  draft.by.fin={};draft.loadedId=null;draft.ca=null;draft.finSaved=false;draft.dirty=false;draft.date=todayStr();draft.market='';saveMarketSoon();
   renderSaisie();if(curTab==='saisie'||curTab==='vente')openPicker();
 });
 
